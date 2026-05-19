@@ -2285,31 +2285,37 @@ function TweenTempleLegit()
 	end)
 
     local Client = game.Players.LocalPlayer
-    local STOP = require(Client.PlayerScripts.CombatFramework.Particle)
-    local STOPRL = require(game:GetService("ReplicatedStorage").CombatFramework.RigLib)
-    spawn(function()
-        while task.wait() do
-            pcall(function()
-                if not shared.orl then shared.orl = STOPRL.wrapAttackAnimationAsync end
-                if not shared.cpc then shared.cpc = STOP.play end
-                    STOPRL.wrapAttackAnimationAsync = function(a,b,c,d,func)
-                    local Hits = STOPRL.getBladeHits(b,c,d)
-                    if Hits then
-                        if _G.FastAttack then
-                            STOP.play = function() end
-                            a:Play(0.01,0.01,0.01)
-                            func(Hits)
-                            STOP.play = shared.cpc
-                            wait(a.length * 0.5)
-                            a:Stop()
-                        else
-                            a:Play()
-                        end
+local STOP = require(Client.PlayerScripts.CombatFramework.Particle)
+local STOPRL = require(game:GetService("ReplicatedStorage").CombatFramework.RigLib)
+
+-- Salva as funções originais para não quebrar o jogo
+local originalWrap = STOPRL.wrapAttackAnimationAsync
+local originalPlay = STOP.play
+
+spawn(function()
+    while task.wait() do
+        pcall(function()
+            if not shared.orl then shared.orl = originalWrap end
+            if not shared.cpc then shared.cpc = originalPlay end
+
+            STOPRL.wrapAttackAnimationAsync = function(a, b, c, d, func)
+                local Hits = STOPRL.getBladeHits(b, c, d)
+                if Hits then
+                    if _G.FastAttack then
+                        STOP.play = function() end
+                        a:Play(0.01, 0.01, 0.01)
+                        func(Hits)
+                        STOP.play = shared.cpc
+                        task.wait(a.length * 0.5)
+                        a:Stop()
+                    else
+                        a:Play()
                     end
                 end
-            end)
-        end
-    end)
+            end
+        end)
+    end
+end)
 
 function GetBladeHit()
     local CombatFrameworkLib = debug.getupvalues(require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework))
