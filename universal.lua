@@ -12,12 +12,12 @@ local LocalPlayer = Players.LocalPlayer
 -- ==================== CONFIGURAÇÕES PADRÃO ====================
 local settings = {
     aimbot = {
-        enabled = false,
-        smoothness = 10,     -- 1 = instantâneo, 50 = muito suave
-        fov = 200,           -- pixels
-        targetPart = "Head", -- "Head", "UpperTorso", "HumanoidRootPart"
-        keybind = Enum.KeyCode.None, -- tecla para ativar enquanto pressiona (None = sempre ativo)
-    },
+    enabled = false,
+    smoothness = 10,     -- 1 = instantâneo, 50 = muito suave
+    fov = 200,           -- pixels
+    targetPart = "Head", -- "Head", "UpperTorso", "HumanoidRootPart"
+    keybind = nil,       -- nil = sempre ativo; ou use Enum.KeyCode.Q, etc.
+},
     aimlock = {
         enabled = false,
         lockKey = Enum.KeyCode.Q,
@@ -303,16 +303,16 @@ RunService.RenderStepped:Connect(function()
     
     -- Aimbot livre (se aimlock não estiver ativo)
     if settings.aimbot.enabled and not isAimlocking then
-        if settings.aimbot.keybind == Enum.KeyCode.None or UserInputService:IsKeyDown(settings.aimbot.keybind) then
-            local targetPlayer = getClosestPlayerToCrosshair()
-            if targetPlayer and targetPlayer.Character then
-                local part = getTargetPart(targetPlayer.Character)
-                if part then
-                    smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
-                end
+    if not settings.aimbot.keybind or UserInputService:IsKeyDown(settings.aimbot.keybind) then
+        local targetPlayer = getClosestPlayerToCrosshair()
+        if targetPlayer and targetPlayer.Character then
+            local part = getTargetPart(targetPlayer.Character)
+            if part then
+                smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
             end
         end
     end
+ end
 end)
 
 -- ==================== UI MODERNA ====================
