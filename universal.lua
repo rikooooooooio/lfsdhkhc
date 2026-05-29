@@ -10,7 +10,18 @@ local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 -- Carregar Rayfield UI
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local RayfieldLoaded, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not RayfieldLoaded or not Rayfield then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Erro",
+        Text = "Falha ao carregar Rayfield. Verifique sua internet ou tente outro executor.",
+        Duration = 5
+    })
+    return
+end
 
 -- ==================== CONFIGURAÇÕES ====================
 local settings = {
