@@ -1,96 +1,14 @@
 --[[
-    Script Universal com Rayfield UI, Aimbot, Aimlock e ESP
-    Totalmente configurável e com correções de bugs
+    Script Universal com Aimbot, Aimlock e ESP
+    UI nativa e totalmente funcional
+    Sem dependências externas
 ]]
 
-local Players = game:GetService("Players")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-
--- Variável da biblioteca de UI
-local Rayfield = nil
-
--- Tenta carregar a UI do Rayfield e, se falhar, usa uma alternativa embutida
-local function loadUILibrary()
-    -- Lista de URLs alternativas para o Rayfield
-    local urls = {
-        "https://sirius.menu/rayfield",
-        "https://raw.githubusercontent.com/shlexware/Rayfield/main/source"
-    }
-
-    for _, url in ipairs(urls) do
-        local success, result = pcall(function()
-            local code = game:HttpGet(url)
-            if code then
-                return loadstring(code)
-            end
-            return nil
-        end)
-
-        if success and result then
-            local lib = result()
-            if lib and lib.CreateWindow then
-                return lib
-            end
-        end
-        task.wait(0.3)  -- Pequena pausa antes de tentar a próxima URL
-    end
-    return nil
-end
-
--- Tenta carregar a biblioteca Rayfield
-Rayfield = loadUILibrary()
-
--- Se o Rayfield não carregar, usa uma interface simples e envia uma notificação
-if not Rayfield then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Aviso - UI Alternativa",
-        Text = "Rayfield não carregou. Usando interface simplificada.",
-        Duration = 5
-    })
-
-    -- Cria uma interface simples como fallback (funções básicas)
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FallbackUI"
-    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 400)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    mainFrame.BackgroundTransparency = 0.1
-    mainFrame.BorderSizePixel = 1
-    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    mainFrame.Parent = screenGui
-
-    local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 30)
-    titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    titleBar.Parent = mainFrame
-
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -30, 1, 0)
-    titleLabel.Position = UDim2.new(0, 5, 0, 0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "Fallback UI - Configurações"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 16
-    titleLabel.Parent = titleBar
-
-    -- ... (Aqui você pode adicionar botões básicos para controle)
-    
-    -- Encerra a execução do resto do script, pois a UI falhou
-    return
-end
-
--- Agora o Rayfield está carregado, o script continua normalmente...
-
--- Se chegou aqui, Rayfield está carregado. Continue o script normalmente...
 
 -- ==================== CONFIGURAÇÕES ====================
 local settings = {
@@ -117,11 +35,11 @@ local settings = {
     }
 }
 
--- ==================== VARIÁVEIS GLOBAIS ====================
+-- ==================== VARIÁVEIS ====================
 local aimlockTarget = nil
 local isAimlocking = false
-local espHighlights = {}  -- Armazena os Highlights de cada jogador
-local espBillboards = {}   -- Armazena os BillboardGuis de cada jogador
+local espBillboards = {}
+local espHighlights = {}
 
 -- ==================== FUNÇÕES AUXILIARES ====================
 local function isEnemy(player)
@@ -148,15 +66,11 @@ end
 local function getClosestPlayerToCrosshair()
     local closestDistance = settings.aimbot.fov
     local closestPlayer = nil
-    local cameraCFrame = Camera.CFrame
-    local cameraForward = cameraCFrame.LookVector
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
             local targetPart = getTargetPart(player.Character)
             if targetPart then
-                local targetPos = targetPart.Position
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPos)
+                local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 if onScreen then
                     local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
                     if distance < closestDistance then
@@ -200,82 +114,7 @@ local function getNearestPlayerInRange()
     return nearest
 end
 
--- ==================== ESP (CORRIGIDO) ====================
-local function createESP(player)
-    if espHighlights[player] then return end
-
-    local character = player.Character
-    if not character then return end
-
-    -- Criar BillboardGui para informações
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_GUI"
-    billboard.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
-    billboard.Size = UDim2.new(0, 4, 0, 4)
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-    billboard.AlwaysOnTop = true
-    billboard.MaxDistance = 300
-    billboard.Enabled = true  -- Garantir que está ativo
-
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 140, 0, 60)
-    mainFrame.BackgroundTransparency = 0.4
-    mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    mainFrame.BorderSizePixel = 1
-    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    mainFrame.Parent = billboard
-
-    -- Nome
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1, 0, 0, 20)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = player.Name
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.TextStrokeTransparency = 0.5
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 14
-    nameLabel.Parent = mainFrame
-
-    -- Barra de vida
-    local healthBarBg = Instance.new("Frame")
-    healthBarBg.Size = UDim2.new(1, -4, 0, 6)
-    healthBarBg.Position = UDim2.new(0, 2, 0, 22)
-    healthBarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    healthBarBg.BorderSizePixel = 0
-    healthBarBg.Parent = mainFrame
-
-    local healthBar = Instance.new("Frame")
-    healthBar.Size = UDim2.new(1, 0, 1, 0)
-    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    healthBar.BorderSizePixel = 0
-    healthBar.Parent = healthBarBg
-
-    -- Distância
-    local distLabel = Instance.new("TextLabel")
-    distLabel.Size = UDim2.new(1, 0, 0, 16)
-    distLabel.Position = UDim2.new(0, 0, 0, 32)
-    distLabel.BackgroundTransparency = 1
-    distLabel.Text = "0m"
-    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLabel.TextSize = 12
-    distLabel.Parent = mainFrame
-
-    -- Caixa (box) usando um Frame
-    local boxFrame = Instance.new("Frame")
-    boxFrame.Size = UDim2.new(1, 0, 1, 0)
-    boxFrame.BackgroundTransparency = 0.8
-    boxFrame.BorderSizePixel = 2
-    boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    boxFrame.Parent = mainFrame
-
-    -- Criar Highlight para o outline do personagem
-    local highlight = Instance.new("Highlight")
-    highlight.FillTransparency = 1
-    highlight.OutlineTransparency = 0.3
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = character
-
-    -- ==================== ESP CORRIGIDO ====================
+-- ==================== ESP ====================
 local function createESP(player)
     if espBillboards[player] then return end
 
@@ -440,7 +279,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Aimlock
     if settings.aimlock.enabled and UserInputService:IsKeyDown(Enum.KeyCode[settings.aimlock.lockKey]) then
         if not isAimlocking then
             aimlockTarget = getNearestPlayerInRange()
@@ -457,7 +295,6 @@ RunService.RenderStepped:Connect(function()
         aimlockTarget = nil
     end
 
-    -- Aimbot livre
     if settings.aimbot.enabled and not isAimlocking then
         if not settings.aimbot.keybind or UserInputService:IsKeyDown(Enum.KeyCode[settings.aimbot.keybind]) then
             local targetPlayer = getClosestPlayerToCrosshair()
@@ -471,186 +308,369 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-local FOVSlider = AimbotTab:CreateSlider({
-    Name = "Campo de visão (FOV)",
-    Range = {50, 500},
-    Increment = 10,
-    Suffix = "px",
-    CurrentValue = 200,
-    Flag = "AimbotFOV",
-    Callback = function(Value)
-        settings.aimbot.fov = Value
-    end
-})
+-- ==================== UI NATIVA (SEM DEPENDÊNCIAS) ====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UniversalGUI"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
-local TargetPartDropdown = AimbotTab:CreateDropdown({
-    Name = "Parte do corpo",
-    Options = {"Head", "UpperTorso", "HumanoidRootPart"},
-    CurrentOption = {"Head"},
-    Flag = "AimbotTargetPart",
-    Callback = function(Option)
-        settings.aimbot.targetPart = Option[1]
-    end
-})
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 380, 0, 480)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -240)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+mainFrame.BackgroundTransparency = 0.05
+mainFrame.BorderSizePixel = 1
+mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
 
-local KeybindInput = AimbotTab:CreateInput({
-    Name = "Tecla de ativação (deixe vazio para sempre ativo)",
-    PlaceholderText = "Ex: Q, E, R, None",
-    CurrentValue = "",
-    Flag = "AimbotKeybind",
-    Callback = function(Text)
-        if Text == "" or Text:lower() == "none" then
-            settings.aimbot.keybind = nil
-        else
-            settings.aimbot.keybind = Text:upper()
+-- Barra de título e arrastar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -30, 1, 0)
+titleLabel.Position = UDim2.new(0, 5, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "  ⚡ Universal Tool v3.0"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.Parent = titleBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 1, 0)
+closeBtn.Position = UDim2.new(1, -30, 0, 0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = titleBar
+closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+
+-- Botões das abas
+local tabButtons = {}
+local tabContents = {}
+
+local function createTab(name, buttonText)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 90, 0, 30)
+    btn.Position = UDim2.new(0, 10 + (#tabButtons * 100), 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    btn.Text = buttonText
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.Parent = mainFrame
+
+    local content = Instance.new("ScrollingFrame")
+    content.Size = UDim2.new(1, -20, 1, -80)
+    content.Position = UDim2.new(0, 10, 0, 70)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel = 0
+    content.CanvasSize = UDim2.new(0, 0, 0, 0)
+    content.ScrollBarThickness = 6
+    content.Visible = false
+    content.Parent = mainFrame
+
+    table.insert(tabButtons, {btn = btn, content = content, name = name})
+    return content
+end
+
+local function selectTab(index)
+    for i, tab in ipairs(tabButtons) do
+        tab.content.Visible = (i == index)
+        tab.btn.BackgroundColor3 = (i == index) and Color3.fromRGB(80, 80, 120) or Color3.fromRGB(60, 60, 80)
+    end
+end
+
+-- Criar abas
+local aimbotTab = createTab("Aimbot", "🎯 Aimbot")
+local aimlockTab = createTab("Aimlock", "🔒 Aimlock")
+local espTab = createTab("ESP", "👁️ ESP")
+
+-- Helper: Checkbox
+local function addCheckbox(parent, text, getter, setter, yPos)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 30)
+    frame.Position = UDim2.new(0, 0, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local check = Instance.new("TextButton")
+    check.Size = UDim2.new(0, 25, 0, 25)
+    check.BackgroundColor3 = getter() and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    check.Text = getter() and "✔" or ""
+    check.TextColor3 = Color3.fromRGB(255, 255, 255)
+    check.Font = Enum.Font.GothamBold
+    check.TextSize = 18
+    check.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -35, 1, 0)
+    label.Position = UDim2.new(0, 35, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.Parent = frame
+
+    check.MouseButton1Click:Connect(function()
+        local newVal = not getter()
+        setter(newVal)
+        check.BackgroundColor3 = newVal and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+        check.Text = newVal and "✔" or ""
+    end)
+    return frame
+end
+
+-- Helper: Slider
+local function addSlider(parent, text, minVal, maxVal, getter, setter, yPos)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 50)
+    frame.Position = UDim2.new(0, 0, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Text = text .. ": " .. tostring(getter())
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.Parent = frame
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(1, 0, 0, 4)
+    slider.Position = UDim2.new(0, 0, 0, 25)
+    slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    slider.BorderSizePixel = 0
+    slider.Parent = frame
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((getter() - minVal) / (maxVal - minVal), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
+    fill.BorderSizePixel = 0
+    fill.Parent = slider
+
+    local valueBtn = Instance.new("TextButton")
+    valueBtn.Size = UDim2.new(0, 30, 0, 20)
+    valueBtn.Position = UDim2.new((getter() - minVal) / (maxVal - minVal), -15, 0, -8)
+    valueBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    valueBtn.Text = tostring(getter())
+    valueBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    valueBtn.Font = Enum.Font.GothamBold
+    valueBtn.TextSize = 12
+    valueBtn.Parent = frame
+
+    local dragging = false
+    local function updateSlider(input)
+        local pos = input.Position.X - slider.AbsolutePosition.X
+        local newPercent = math.clamp(pos / slider.AbsoluteSize.X, 0, 1)
+        local newValue = math.floor(minVal + (maxVal - minVal) * newPercent)
+        setter(newValue)
+        fill.Size = UDim2.new(newPercent, 0, 1, 0)
+        valueBtn.Position = UDim2.new(newPercent, -15, 0, -8)
+        valueBtn.Text = tostring(newValue)
+        label.Text = text .. ": " .. tostring(newValue)
+    end
+
+    valueBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            updateSlider(input)
         end
-    end
-})
-
--- Aba Aimlock
-local AimlockTab = Window:CreateTab("🔒 Aimlock", 1)
-
-local AimlockSection = AimlockTab:CreateSection("Configurações do Aimlock")
-
-local AimlockToggle = AimlockTab:CreateToggle({
-    Name = "Ativar Aimlock",
-    CurrentValue = false,
-    Flag = "AimlockEnabled",
-    Callback = function(Value)
-        settings.aimlock.enabled = Value
-    end
-})
-
-local DistanceSlider = AimlockTab:CreateSlider({
-    Name = "Distância máxima",
-    Range = {50, 300},
-    Increment = 10,
-    Suffix = "estuds",
-    CurrentValue = 100,
-    Flag = "AimlockDistance",
-    Callback = function(Value)
-        settings.aimlock.maxDistance = Value
-    end
-})
-
-local KeybindInput2 = AimlockTab:CreateInput({
-    Name = "Tecla de ativação (padrão: Q)",
-    PlaceholderText = "Ex: Q, E, R",
-    CurrentValue = "Q",
-    Flag = "AimlockKeybind",
-    Callback = function(Text)
-        if Text ~= "" then
-            settings.aimlock.lockKey = Text:upper()
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider(input)
         end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    return frame
+end
+
+-- Helper: Dropdown (simplificado)
+local function addDropdown(parent, text, options, getter, setter, yPos)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 40)
+    frame.Position = UDim2.new(0, 0, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.Parent = frame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 25)
+    btn.Position = UDim2.new(0, 0, 0, 20)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    btn.Text = getter()
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.Parent = frame
+
+    local dropdown = Instance.new("Frame")
+    dropdown.Size = UDim2.new(1, 0, 0, #options * 25)
+    dropdown.Position = UDim2.new(0, 0, 0, 45)
+    dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    dropdown.BorderSizePixel = 1
+    dropdown.Visible = false
+    dropdown.Parent = frame
+
+    for i, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, 25)
+        optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 25)
+        optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+        optBtn.Text = opt
+        optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        optBtn.Font = Enum.Font.Gotham
+        optBtn.TextSize = 14
+        optBtn.Parent = dropdown
+        optBtn.MouseButton1Click:Connect(function()
+            setter(opt)
+            btn.Text = opt
+            dropdown.Visible = false
+        end)
     end
-})
 
--- Aba ESP
-local ESPTab = Window:CreateTab("👁️ ESP", 2)
+    btn.MouseButton1Click:Connect(function()
+        dropdown.Visible = not dropdown.Visible
+    end)
+    return frame
+end
 
-local ESPSection = ESPTab:CreateSection("Configurações do ESP")
+-- Helper: Input (tecla)
+local function addKeybindInput(parent, text, getter, setter, yPos)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 40)
+    frame.Position = UDim2.new(0, 0, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
 
-local ESPToggle = ESPTab:CreateToggle({
-    Name = "Ativar ESP",
-    CurrentValue = false,
-    Flag = "ESPEnabled",
-    Callback = function(Value)
-        settings.esp.enabled = Value
-        if Value then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and isEnemy(player) then
-                    createESP(player)
-                end
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.Parent = frame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 25)
+    btn.Position = UDim2.new(0, 0, 0, 20)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    btn.Text = getter() or "None"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.Parent = frame
+
+    local listening = false
+    btn.MouseButton1Click:Connect(function()
+        if listening then return end
+        listening = true
+        btn.Text = "Aperte uma tecla..."
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode ~= Enum.KeyCode.Unknown then
+                local key = input.KeyCode.Name
+                setter(key)
+                btn.Text = key
+                listening = false
+                connection:Disconnect()
             end
-        else
-            for _, billboard in pairs(espBillboards) do
-                if billboard then billboard:Destroy() end
-            end
-            for _, highlight in pairs(espHighlights) do
-                if highlight then highlight:Destroy() end
-            end
-            espBillboards = {}
-            espHighlights = {}
+        end)
+        task.wait(5)
+        if listening then
+            listening = false
+            btn.Text = getter() or "None"
+            connection:Disconnect()
         end
+    end)
+    return frame
+end
+
+-- Preencher Aimbot Tab
+local y = 10
+addCheckbox(aimbotTab, "Ativar Aimbot", function() return settings.aimbot.enabled end, function(v) settings.aimbot.enabled = v end, y); y = y + 35
+addSlider(aimbotTab, "Suavidade", 1, 50, function() return settings.aimbot.smoothness end, function(v) settings.aimbot.smoothness = v end, y); y = y + 55
+addSlider(aimbotTab, "Campo de visão (FOV)", 50, 500, function() return settings.aimbot.fov end, function(v) settings.aimbot.fov = v end, y); y = y + 55
+addDropdown(aimbotTab, "Parte do corpo", {"Head", "UpperTorso", "HumanoidRootPart"}, function() return settings.aimbot.targetPart end, function(v) settings.aimbot.targetPart = v end, y); y = y + 50
+addKeybindInput(aimbotTab, "Tecla de ativação (None = sempre)", function() return settings.aimbot.keybind end, function(v) settings.aimbot.keybind = v end, y)
+y = y + 50
+aimbotTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
+
+-- Preencher Aimlock Tab
+y = 10
+addCheckbox(aimlockTab, "Ativar Aimlock", function() return settings.aimlock.enabled end, function(v) settings.aimlock.enabled = v end, y); y = y + 35
+addSlider(aimlockTab, "Distância máxima", 50, 300, function() return settings.aimlock.maxDistance end, function(v) settings.aimlock.maxDistance = v end, y); y = y + 55
+addKeybindInput(aimlockTab, "Tecla de ativação", function() return settings.aimlock.lockKey end, function(v) settings.aimlock.lockKey = v end, y)
+y = y + 50
+aimlockTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
+
+-- Preencher ESP Tab
+y = 10
+addCheckbox(espTab, "Ativar ESP", function() return settings.esp.enabled end, function(v) settings.esp.enabled = v; if v then for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and isEnemy(p) then createESP(p) end end else for _, b in pairs(espBillboards) do if b then b:Destroy() end end for _, h in pairs(espHighlights) do if h then h:Destroy() end end espBillboards = {} espHighlights = {} end end, y); y = y + 35
+addCheckbox(espTab, "Mostrar Caixa (Box)", function() return settings.esp.showBox end, function(v) settings.esp.showBox = v end, y); y = y + 35
+addCheckbox(espTab, "Mostrar Nome", function() return settings.esp.showName end, function(v) settings.esp.showName = v end, y); y = y + 35
+addCheckbox(espTab, "Mostrar Vida", function() return settings.esp.showHealth end, function(v) settings.esp.showHealth = v end, y); y = y + 35
+addCheckbox(espTab, "Mostrar Distância", function() return settings.esp.showDistance end, function(v) settings.esp.showDistance = v end, y); y = y + 35
+addCheckbox(espTab, "Cor por Time", function() return settings.esp.teamColor end, function(v) settings.esp.teamColor = v end, y); y = y + 35
+addCheckbox(espTab, "Apenas Inimigos", function() return settings.esp.onlyEnemies end, function(v) settings.esp.onlyEnemies = v; for _, b in pairs(espBillboards) do if b then b:Destroy() end end for _, h in pairs(espHighlights) do if h then h:Destroy() end end espBillboards = {} espHighlights = {} if settings.esp.enabled then for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and isEnemy(p) then createESP(p) end end end end, y)
+y = y + 35
+espTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
+
+-- Selecionar primeira aba
+selectTab(1)
+for i, tab in ipairs(tabButtons) do
+    tab.btn.MouseButton1Click:Connect(function() selectTab(i) end)
+end
+
+-- Sistema de arrastar janela
+local dragStart, dragFrameStart, dragging = nil, nil, false
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        dragFrameStart = mainFrame.Position
     end
-})
-
-local BoxToggle = ESPTab:CreateToggle({
-    Name = "Mostrar Caixa (Box)",
-    CurrentValue = true,
-    Flag = "ESPBox",
-    Callback = function(Value)
-        settings.esp.showBox = Value
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(dragFrameStart.X.Scale, dragFrameStart.X.Offset + delta.X, dragFrameStart.Y.Scale, dragFrameStart.Y.Offset + delta.Y)
     end
-})
-
-local NameToggle = ESPTab:CreateToggle({
-    Name = "Mostrar Nome",
-    CurrentValue = true,
-    Flag = "ESPName",
-    Callback = function(Value)
-        settings.esp.showName = Value
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
     end
-})
+end)
 
-local HealthToggle = ESPTab:CreateToggle({
-    Name = "Mostrar Vida",
-    CurrentValue = true,
-    Flag = "ESPHealth",
-    Callback = function(Value)
-        settings.esp.showHealth = Value
-    end
+-- Notificação inicial
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "Universal Tool",
+    Text = "Script carregado com sucesso! Use a UI para configurar.",
+    Duration = 4
 })
-
-local DistanceToggle = ESPTab:CreateToggle({
-    Name = "Mostrar Distância",
-    CurrentValue = true,
-    Flag = "ESPDistance",
-    Callback = function(Value)
-        settings.esp.showDistance = Value
-    end
-})
-
-local TeamColorToggle = ESPTab:CreateToggle({
-    Name = "Cor por Time",
-    CurrentValue = true,
-    Flag = "ESPTeamColor",
-    Callback = function(Value)
-        settings.esp.teamColor = Value
-    end
-})
-
-local OnlyEnemiesToggle = ESPTab:CreateToggle({
-    Name = "Apenas Inimigos",
-    CurrentValue = false,
-    Flag = "ESPOnlyEnemies",
-    Callback = function(Value)
-        settings.esp.onlyEnemies = Value
-        -- Recriar ESP
-        for _, billboard in pairs(espBillboards) do
-            if billboard then billboard:Destroy() end
-        end
-        for _, highlight in pairs(espHighlights) do
-            if highlight then highlight:Destroy() end
-        end
-        espBillboards = {}
-        espHighlights = {}
-        if settings.esp.enabled then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and isEnemy(player) then
-                    createESP(player)
-                end
-            end
-        end
-    end
-})
-
--- Notificação de carregamento
-Rayfield:Notify({
-    Title = "Script Carregado",
-    Content = "Todas as funcionalidades estão ativas!",
-    Duration = 3,
-})
-
--- Carregar configurações salvas
-Rayfield:LoadConfiguration()
