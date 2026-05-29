@@ -9,19 +9,27 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Carregar Rayfield UI
-local RayfieldLoaded, Rayfield = pcall(function()
-    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Carregamento seguro do Rayfield
+local Rayfield
+local success, result = pcall(function()
+    local url = "https://sirius.menu/rayfield"
+    local code = game:HttpGet(url)
+    return loadstring(code)
 end)
 
-if not RayfieldLoaded or not Rayfield then
+if success and result then
+    Rayfield = result()
+else
+    -- Fallback: notificação de erro e encerra
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Erro",
-        Text = "Falha ao carregar Rayfield. Verifique sua internet ou tente outro executor.",
+        Text = "Falha ao carregar Rayfield. Verifique sua conexão.",
         Duration = 5
     })
     return
 end
+
+-- Se chegou aqui, Rayfield está carregado. Continue o script normalmente...
 
 -- ==================== CONFIGURAÇÕES ====================
 local settings = {
