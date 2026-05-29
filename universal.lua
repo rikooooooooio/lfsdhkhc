@@ -4,30 +4,91 @@
 ]]
 
 local Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Carregamento seguro do Rayfield
-local Rayfield
-local success, result = pcall(function()
-    local url = "https://sirius.menu/rayfield"
-    local code = game:HttpGet(url)
-    return loadstring(code)
-end)
+-- Variável da biblioteca de UI
+local Rayfield = nil
 
-if success and result then
-    Rayfield = result()
-else
-    -- Fallback: notificação de erro e encerra
+-- Tenta carregar a UI do Rayfield e, se falhar, usa uma alternativa embutida
+local function loadUILibrary()
+    -- Lista de URLs alternativas para o Rayfield
+    local urls = {
+        "https://sirius.menu/rayfield",
+        "https://raw.githubusercontent.com/shlexware/Rayfield/main/source"
+    }
+
+    for _, url in ipairs(urls) do
+        local success, result = pcall(function()
+            local code = game:HttpGet(url)
+            if code then
+                return loadstring(code)
+            end
+            return nil
+        end)
+
+        if success and result then
+            local lib = result()
+            if lib and lib.CreateWindow then
+                return lib
+            end
+        end
+        task.wait(0.3)  -- Pequena pausa antes de tentar a próxima URL
+    end
+    return nil
+end
+
+-- Tenta carregar a biblioteca Rayfield
+Rayfield = loadUILibrary()
+
+-- Se o Rayfield não carregar, usa uma interface simples e envia uma notificação
+if not Rayfield then
     game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Erro",
-        Text = "Falha ao carregar Rayfield. Verifique sua conexão.",
+        Title = "Aviso - UI Alternativa",
+        Text = "Rayfield não carregou. Usando interface simplificada.",
         Duration = 5
     })
+
+    -- Cria uma interface simples como fallback (funções básicas)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "FallbackUI"
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    mainFrame.BackgroundTransparency = 0.1
+    mainFrame.BorderSizePixel = 1
+    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    mainFrame.Parent = screenGui
+
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
+    titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titleBar.Parent = mainFrame
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -30, 1, 0)
+    titleLabel.Position = UDim2.new(0, 5, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "Fallback UI - Configurações"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 16
+    titleLabel.Parent = titleBar
+
+    -- ... (Aqui você pode adicionar botões básicos para controle)
+    
+    -- Encerra a execução do resto do script, pois a UI falhou
     return
 end
+
+-- Agora o Rayfield está carregado, o script continua normalmente...
 
 -- Se chegou aqui, Rayfield está carregado. Continue o script normalmente...
 
