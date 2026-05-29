@@ -214,9 +214,83 @@ local function createESP(player)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
 
+    -- ==================== ESP CORRIGIDO ====================
+local function createESP(player)
+    if espBillboards[player] then return end
+
+    local character = player.Character
+    if not character then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_GUI"
+    billboard.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+    billboard.Size = UDim2.new(0, 4, 0, 4)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.MaxDistance = 300
+    billboard.Enabled = true
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 140, 0, 60)
+    mainFrame.BackgroundTransparency = 0.4
+    mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    mainFrame.BorderSizePixel = 1
+    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    mainFrame.Parent = billboard
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 14
+    nameLabel.Parent = mainFrame
+
+    local healthBarBg = Instance.new("Frame")
+    healthBarBg.Name = "HealthBarBg"
+    healthBarBg.Size = UDim2.new(1, -4, 0, 6)
+    healthBarBg.Position = UDim2.new(0, 2, 0, 22)
+    healthBarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarBg.BorderSizePixel = 0
+    healthBarBg.Parent = mainFrame
+
+    local healthBar = Instance.new("Frame")
+    healthBar.Name = "HealthBar"
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.BorderSizePixel = 0
+    healthBar.Parent = healthBarBg
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Name = "DistanceLabel"
+    distLabel.Size = UDim2.new(1, 0, 0, 16)
+    distLabel.Position = UDim2.new(0, 0, 0, 32)
+    distLabel.BackgroundTransparency = 1
+    distLabel.Text = "0m"
+    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    distLabel.TextSize = 12
+    distLabel.Parent = mainFrame
+
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Name = "BoxFrame"
+    boxFrame.Size = UDim2.new(1, 0, 1, 0)
+    boxFrame.BackgroundTransparency = 0.8
+    boxFrame.BorderSizePixel = 2
+    boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    boxFrame.Parent = mainFrame
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillTransparency = 1
+    highlight.OutlineTransparency = 0.3
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+
     espBillboards[player] = billboard
     espHighlights[player] = highlight
-    
     billboard.Parent = character
 end
 
@@ -229,11 +303,73 @@ local function updateESP()
             espBillboards[player] = nil
             espHighlights[player] = nil
         else
-            -- Atualizar Billboard
-            local mainFrame = billboard:FindFirstChild("Frame")
+            local mainFrame = billboard:FindFirstChild("MainFrame")
             if mainFrame then
                 local humanoid = character:FindFirstChild("Humanoid")
-                
+                if humanoid then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    local healthBarBg = mainFrame:FindFirstChild("HealthBarBg")
+                    if healthBarBg then
+                        local healthBar = healthBarBg:FindFirstChild("HealthBar")
+                        if healthBar then
+                            healthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
+                            healthBar.BackgroundColor3 = Color3.fromRGB(255 - 255 * healthPercent, 255 * healthPercent, 0)
+                        end
+                    end
+
+                    if settings.esp.showDistance then
+                        local rootPart = character:FindFirstChild("HumanoidRootPart")
+                        local distLabel = mainFrame:FindFirstChild("DistanceLabel")
+                        if rootPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and distLabel then
+                            local dist = (rootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                            distLabel.Text = math.floor(dist) .. "m"
+                            distLabel.Visible = true
+                        elseif distLabel then
+                            distLabel.Visible = false
+                        end
+                    else
+                        local distLabel = mainFrame:FindFirstChild("DistanceLabel")
+                        if distLabel then distLabel.Visible = false end
+                    end
+
+                    if settings.esp.teamColor and LocalPlayer.Team and player.Team then
+                        local boxFrame = mainFrame:FindFirstChild("BoxFrame")
+                        local nameLabel = mainFrame:FindFirstChild("NameLabel")
+                        if LocalPlayer.Team == player.Team then
+                            if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(0, 0, 255) end
+                            if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(0, 0, 255) end
+                            if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(0, 0, 255) end
+                        else
+                            if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(255, 0, 0) end
+                            if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(255, 0, 0) end
+                            if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(255, 0, 0) end
+                        end
+                    else
+                        local boxFrame = mainFrame:FindFirstChild("BoxFrame")
+                        local nameLabel = mainFrame:FindFirstChild("NameLabel")
+                        if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255) end
+                        if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) end
+                        if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(255, 255, 255) end
+                    end
+
+                    local boxFrame = mainFrame:FindFirstChild("BoxFrame")
+                    local nameLabel = mainFrame:FindFirstChild("NameLabel")
+                    local healthBarBg = mainFrame:FindFirstChild("HealthBarBg")
+                    if boxFrame then boxFrame.Visible = settings.esp.showBox end
+                    if nameLabel then nameLabel.Visible = settings.esp.showName end
+                    if healthBarBg then healthBarBg.Visible = settings.esp.showHealth end
+                    if espHighlights[player] then espHighlights[player].Enabled = settings.esp.showBox end
+                end
+            end
+            billboard.Enabled = settings.esp.enabled
+        end
+    end
+end
+
+-- ==================== LOOP PRINCIPAL ====================
+RunService.RenderStepped:Connect(function()
+    if settings.esp.enabled then
+        updateESP()
     else
         for _, billboard in pairs(espBillboards) do
             if billboard then billboard.Enabled = false end
@@ -242,8 +378,8 @@ local function updateESP()
             if highlight then highlight.Enabled = false end
         end
     end
-    
-    -- Aimlock (tecla Q)
+
+    -- Aimlock
     if settings.aimlock.enabled and UserInputService:IsKeyDown(Enum.KeyCode[settings.aimlock.lockKey]) then
         if not isAimlocking then
             aimlockTarget = getNearestPlayerInRange()
@@ -259,7 +395,7 @@ local function updateESP()
         isAimlocking = false
         aimlockTarget = nil
     end
-    
+
     -- Aimbot livre
     if settings.aimbot.enabled and not isAimlocking then
         if not settings.aimbot.keybind or UserInputService:IsKeyDown(Enum.KeyCode[settings.aimbot.keybind]) then
@@ -273,48 +409,6 @@ local function updateESP()
         end
     end
 end)
-
--- ==================== UI COM RAYFIELD ====================
-local Window = Rayfield:CreateWindow({
-    Name = "Universal Tool v2.0",
-    LoadingTitle = "Carregando...",
-    LoadingSubtitle = "by SeuNome",
-    ConfigurationSaving = {
-        Enabled = true,
-        FileName = "UniversalToolConfig"
-    },
-    KeySystem = false,
-    KeySettings = {
-        Key = "Key",
-        LoadKey = function() end
-    }
-})
-
--- Aba Aimbot
-local AimbotTab = Window:CreateTab("🎯 Aimbot", 0)
-
-local AimbotSection = AimbotTab:CreateSection("Configurações do Aimbot")
-
-local AimbotToggle = AimbotTab:CreateToggle({
-    Name = "Ativar Aimbot",
-    CurrentValue = false,
-    Flag = "AimbotEnabled",
-    Callback = function(Value)
-        settings.aimbot.enabled = Value
-    end
-})
-
-local SmoothnessSlider = AimbotTab:CreateSlider({
-    Name = "Suavidade (Smoothing)",
-    Range = {1, 50},
-    Increment = 1,
-    Suffix = "",
-    CurrentValue = 10,
-    Flag = "AimbotSmoothness",
-    Callback = function(Value)
-        settings.aimbot.smoothness = Value
-    end
-})
 
 local FOVSlider = AimbotTab:CreateSlider({
     Name = "Campo de visão (FOV)",
