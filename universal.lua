@@ -120,13 +120,14 @@ local function getNearestPlayerInRange()
     return nearest
 end
 
--- ==================== ESP ====================
+-- ==================== ESP (REFORMULADO) ====================
 local function createESP(player)
     if espBillboards[player] then return end
 
     local character = player.Character
     if not character then return end
 
+    -- Billboard principal
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_GUI"
     billboard.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
@@ -134,31 +135,42 @@ local function createESP(player)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
     billboard.AlwaysOnTop = true
     billboard.MaxDistance = 300
-    billboard.Enabled = true
+    billboard.Enabled = true  -- sempre ativo, controle via elementos internos
 
+    -- Frame principal invisível apenas para agrupar
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 140, 0, 60)
-    mainFrame.BackgroundTransparency = 0.4
-    mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    mainFrame.BorderSizePixel = 1
-    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    mainFrame.Size = UDim2.new(0, 200, 0, 80)
+    mainFrame.BackgroundTransparency = 1
     mainFrame.Parent = billboard
 
+    -- Caixa (Box) – será um Highlight no personagem, não no Billboard
+    -- Para a caixa ao redor do personagem usamos Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillTransparency = 1
+    highlight.OutlineTransparency = 0.3
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+
+    -- Nome acima da cabeça
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "NameLabel"
-    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.Size = UDim2.new(0, 150, 0, 20)
+    nameLabel.Position = UDim2.new(0.5, -75, 0, -30)
     nameLabel.BackgroundTransparency = 1
     nameLabel.Text = player.Name
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeTransparency = 0.3
     nameLabel.Font = Enum.Font.GothamBold
     nameLabel.TextSize = 14
     nameLabel.Parent = mainFrame
 
+    -- Barra de vida (ao lado do nome, por exemplo)
     local healthBarBg = Instance.new("Frame")
     healthBarBg.Name = "HealthBarBg"
-    healthBarBg.Size = UDim2.new(1, -4, 0, 6)
-    healthBarBg.Position = UDim2.new(0, 2, 0, 22)
+    healthBarBg.Size = UDim2.new(0, 100, 0, 8)
+    healthBarBg.Position = UDim2.new(0.5, -50, 0, -10)
     healthBarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     healthBarBg.BorderSizePixel = 0
     healthBarBg.Parent = mainFrame
@@ -169,31 +181,6 @@ local function createESP(player)
     healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     healthBar.BorderSizePixel = 0
     healthBar.Parent = healthBarBg
-
-    local distLabel = Instance.new("TextLabel")
-    distLabel.Name = "DistanceLabel"
-    distLabel.Size = UDim2.new(1, 0, 0, 16)
-    distLabel.Position = UDim2.new(0, 0, 0, 32)
-    distLabel.BackgroundTransparency = 1
-    distLabel.Text = "0m"
-    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLabel.TextSize = 12
-    distLabel.Parent = mainFrame
-
-    local boxFrame = Instance.new("Frame")
-    boxFrame.Name = "BoxFrame"
-    boxFrame.Size = UDim2.new(1, 0, 1, 0)
-    boxFrame.BackgroundTransparency = 0.8
-    boxFrame.BorderSizePixel = 2
-    boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    boxFrame.Parent = mainFrame
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.FillTransparency = 1
-    highlight.OutlineTransparency = 0.3
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = character
 
     espBillboards[player] = billboard
     espHighlights[player] = highlight
@@ -213,64 +200,50 @@ local function updateESP()
             if mainFrame then
                 local humanoid = character:FindFirstChild("Humanoid")
                 if humanoid then
+                    -- Atualizar vida
                     local healthPercent = humanoid.Health / humanoid.MaxHealth
                     local healthBarBg = mainFrame:FindFirstChild("HealthBarBg")
                     if healthBarBg then
                         local healthBar = healthBarBg:FindFirstChild("HealthBar")
                         if healthBar then
                             healthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
-                            healthBar.BackgroundColor3 = Color3.fromRGB(255 - 255 * healthPercent, 255 * healthPercent, 0)
+                            local r = 255 - 255 * healthPercent
+                            local g = 255 * healthPercent
+                            healthBar.BackgroundColor3 = Color3.fromRGB(r, g, 0)
                         end
+                        healthBarBg.Visible = settings.esp.showHealth
                     end
 
-                    if settings.esp.showDistance then
-                        local rootPart = character:FindFirstChild("HumanoidRootPart")
-                        local distLabel = mainFrame:FindFirstChild("DistanceLabel")
-                        if rootPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and distLabel then
-                            local dist = (rootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                            distLabel.Text = math.floor(dist) .. "m"
-                            distLabel.Visible = true
-                        elseif distLabel then
-                            distLabel.Visible = false
-                        end
-                    else
-                        local distLabel = mainFrame:FindFirstChild("DistanceLabel")
-                        if distLabel then distLabel.Visible = false end
-                    end
-
-                    if settings.esp.teamColor and LocalPlayer.Team and player.Team then
-                        local boxFrame = mainFrame:FindFirstChild("BoxFrame")
-                        local nameLabel = mainFrame:FindFirstChild("NameLabel")
-                        if LocalPlayer.Team == player.Team then
-                            if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(0, 0, 255) end
-                            if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(0, 0, 255) end
-                            if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(0, 0, 255) end
-                        else
-                            if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(255, 0, 0) end
-                            if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(255, 0, 0) end
-                            if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(255, 0, 0) end
-                        end
-                    else
-                        local boxFrame = mainFrame:FindFirstChild("BoxFrame")
-                        local nameLabel = mainFrame:FindFirstChild("NameLabel")
-                        if boxFrame then boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255) end
-                        if nameLabel then nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) end
-                        if espHighlights[player] then espHighlights[player].OutlineColor = Color3.fromRGB(255, 255, 255) end
-                    end
-
-                    local boxFrame = mainFrame:FindFirstChild("BoxFrame")
+                    -- Nome
                     local nameLabel = mainFrame:FindFirstChild("NameLabel")
-                    local healthBarBg = mainFrame:FindFirstChild("HealthBarBg")
-                    if boxFrame then boxFrame.Visible = settings.esp.showBox end
-                    if nameLabel then nameLabel.Visible = settings.esp.showName end
-                    if healthBarBg then healthBarBg.Visible = settings.esp.showHealth end
-                    if espHighlights[player] then espHighlights[player].Enabled = settings.esp.showBox end
+                    if nameLabel then
+                        nameLabel.Visible = settings.esp.showName
+                        if settings.esp.teamColor and LocalPlayer.Team and player.Team then
+                            nameLabel.TextColor3 = (LocalPlayer.Team == player.Team) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
+                        else
+                            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        end
+                    end
+
+                    -- Caixa (Highlight)
+                    if espHighlights[player] then
+                        espHighlights[player].Enabled = settings.esp.showBox
+                        if settings.esp.teamColor and LocalPlayer.Team and player.Team then
+                            espHighlights[player].OutlineColor = (LocalPlayer.Team == player.Team) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
+                        else
+                            espHighlights[player].OutlineColor = Color3.fromRGB(255, 255, 255)
+                        end
+                    end
                 end
             end
-            billboard.Enabled = settings.esp.enabled
+            billboard.Enabled = true -- sempre visível, mas seus filhos controlam a exibição
         end
     end
 end
+
+    
+    
+                    
 
 -- ==================== DETECTAR NOVOS JOGADORES ====================
 local function onCharacterAdded(player)
