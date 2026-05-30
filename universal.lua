@@ -1,6 +1,6 @@
 --[[
-    Universal Tool v4.1 – Fluent UI (Tamanho reduzido)
-    Aimbot | Aimlock | ESP (Box, Nome, Vida) | Misc
+    Universal Tool v4.2 – Fluent UI (Compatível)
+    Aimbot | Aimlock | ESP | Misc
 ]]
 
 -- Carregar Fluent
@@ -30,12 +30,9 @@ local espHighlights = {}
 local espNameLabels = {}
 local espHealthBars = {}
 
--- Funções auxiliares
 local function isEnemy(player)
     if player == LocalPlayer then return false end
-    if settings.esp.onlyEnemies then
-        return LocalPlayer.Team ~= player.Team
-    end
+    if settings.esp.onlyEnemies then return LocalPlayer.Team ~= player.Team end
     return true
 end
 
@@ -256,7 +253,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== FLUENT UI (TAMANHO REDUZIDO) ====================
+-- ==================== FLUENT UI (SINTAXE CORRIGIDA) ====================
 local Window = Fluent:CreateWindow({
     Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
@@ -267,11 +264,11 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Abas
-local AimbotTab = Window:AddTab({ Title = "Aimbot" })
-local AimlockTab = Window:AddTab({ Title = "Aimlock" })
-local ESPTab = Window:AddTab({ Title = "ESP" })
-local MiscTab = Window:AddTab({ Title = "Misc" })
+-- Abas (usando string simples, sem tabela)
+local AimbotTab = Window:AddTab("Aimbot")
+local AimlockTab = Window:AddTab("Aimlock")
+local ESPTab = Window:AddTab("ESP")
+local MiscTab = Window:AddTab("Misc")
 
 -- Aimbot
 AimbotTab:AddSection("Configurações do Aimbot")
@@ -315,7 +312,7 @@ MiscTab:AddButton({ Title = "Salvar configuração", Callback = function()
     Fluent:Notify({ Title = "Info", Content = "Salvar não implementado nesta versão", Duration = 2 })
 end })
 MiscTab:AddButton({ Title = "Fechar UI", Callback = function() Window:Destroy() end })
-MiscTab:AddParagraph({ Title = "Informações", Content = "Universal Tool v4.1\nFluent UI\nTamanho reduzido" })
+MiscTab:AddParagraph({ Title = "Informações", Content = "Universal Tool v4.2\nFluent UI\nCompatível" })
 
 -- Notificação
 Fluent:Notify({ Title = "Universal Tool", Content = "Script carregado!", SubContent = "Interface reduzida", Duration = 4 })
