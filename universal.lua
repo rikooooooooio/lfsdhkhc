@@ -1,5 +1,5 @@
 --[[
-    Universal Tool v3.0
+    Universal Tool v3.1 – Corrigido
     Aimbot | Aimlock | ESP (Box, Nome, Vida) | Misc
 ]]
 
@@ -41,9 +41,9 @@ local settings = {
 -- ==================== VARIÁVEIS ====================
 local aimlockTarget = nil
 local isAimlocking = false
-local espHighlights = {}  -- para o box (Highlight)
-local espNameLabels = {}   -- para os nomes (BillboardGui)
-local espHealthBars = {}   -- para as vidas (BillboardGui)
+local espHighlights = {}
+local espNameLabels = {}
+local espHealthBars = {}
 
 -- ==================== FUNÇÕES AUXILIARES ====================
 local function isEnemy(player)
@@ -119,15 +119,14 @@ local function getNearestPlayerInRange()
     return nearest
 end
 
--- ==================== ESP (SIMPLIFICADO) ====================
--- Cria os elementos visuais para um jogador
+-- ==================== ESP ====================
 local function setupESP(player)
     if espHighlights[player] then return end
 
     local character = player.Character
     if not character then return end
 
-    -- Box: Highlight ao redor do personagem
+    -- Box (Highlight)
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Highlight"
     highlight.FillTransparency = 1
@@ -184,12 +183,10 @@ local function setupESP(player)
     billboard.Parent = character
 end
 
--- Atualiza a aparência do ESP para todos os jogadores
 local function updateESP()
     for player, highlight in pairs(espHighlights) do
         local character = player.Character
         if not character or not isEnemy(player) then
-            -- Remove se o personagem não existe ou não é inimigo
             if highlight then highlight:Destroy() end
             local billboard = character and character:FindFirstChild("ESP_Billboard")
             if billboard then billboard:Destroy() end
@@ -197,7 +194,7 @@ local function updateESP()
             espNameLabels[player] = nil
             espHealthBars[player] = nil
         else
-            -- Atualiza o Highlight (Box)
+            -- Box
             highlight.Enabled = settings.esp.showBox
             if settings.esp.teamColor and LocalPlayer.Team and player.Team then
                 highlight.OutlineColor = (LocalPlayer.Team == player.Team) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
@@ -205,7 +202,7 @@ local function updateESP()
                 highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             end
 
-            -- Atualiza o nome
+            -- Nome
             local nameLabel = espNameLabels[player]
             if nameLabel then
                 nameLabel.Visible = settings.esp.showName
@@ -216,9 +213,9 @@ local function updateESP()
                 end
             end
 
-            -- Atualiza a barra de vida
+            -- Vida
             local health = espHealthBars[player]
-            if health and health.bar and health.bg then
+            if health and health.bg and health.bar then
                 health.bg.Visible = settings.esp.showHealth
                 if character and character:FindFirstChild("Humanoid") then
                     local humanoid = character.Humanoid
@@ -233,30 +230,32 @@ local function updateESP()
     end
 end
 
--- Detecta novos jogadores e configura ESP automaticamente
+-- Inicializar ESP para jogadores existentes e futuros
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if isEnemy(player) then setupESP(player) end
+        end)
+        if player.Character and isEnemy(player) then
+            setupESP(player)
+        end
+    end
+end
+
 Players.PlayerAdded:Connect(function(player)
     if player == LocalPlayer then return end
     player.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if isEnemy(player) then
-            setupESP(player)
-        end
+        if isEnemy(player) then setupESP(player) end
     end)
     if player.Character and isEnemy(player) then
         setupESP(player)
     end
 end)
 
--- Configura ESP para jogadores já existentes
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer and isEnemy(player) then
-        setupESP(player)
-    end
-end
-
 -- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
-    -- Atualiza ESP a cada frame
     updateESP()
 
     -- Aimlock
@@ -291,17 +290,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== UI COM FLUENT (CORRIGIDO) ====================
--- Verificar se Fluent foi carregado
-if not Fluent or not Fluent.CreateWindow then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Erro",
-        Text = "Falha ao carregar Fluent UI. Verifique sua conexão.",
-        Duration = 5
-    })
-    return
-end
-
+-- ==================== UI COM FLUENT ====================
 local Window = Fluent:CreateWindow({
     Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
@@ -312,26 +301,24 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Criar abas ANTES de qualquer operação
-local AimbotTab = Window:AddTab({ Title = "Aimbot", Icon = "target" })
-local AimlockTab = Window:AddTab({ Title = "Aimlock", Icon = "lock" })
-local ESPTab = Window:AddTab({ Title = "ESP", Icon = "eye" })
-local MiscTab = Window:AddTab({ Title = "Misc", Icon = "settings" })
+-- Abas
+local AimbotTab = Window:AddTab({ Title = "Aimbot" })
+local AimlockTab = Window:AddTab({ Title = "Aimlock" })
+local ESPTab = Window:AddTab({ Title = "ESP" })
+local MiscTab = Window:AddTab({ Title = "Misc" })
 
--- Configurar SaveManager (apenas se disponível)
-if SaveManager and InterfaceManager then
-    pcall(function()
-        SaveManager:SetLibrary(Fluent)
-        InterfaceManager:SetLibrary(Fluent)
-        SaveManager:IgnoreThemeSettings()
-        InterfaceManager:SetFolder("UniversalTool")
-        SaveManager:SetFolder("UniversalTool")
-        SaveManager:BuildConfigSection(AimbotTab)
-        SaveManager:BuildConfigSection(AimlockTab)
-        SaveManager:BuildConfigSection(ESPTab)
-        SaveManager:BuildConfigSection(MiscTab)
-    end)
-end
+-- Configurar SaveManager (pcall para evitar erros)
+pcall(function()
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    InterfaceManager:SetFolder("UniversalTool")
+    SaveManager:SetFolder("UniversalTool")
+    SaveManager:BuildConfigSection(AimbotTab)
+    SaveManager:BuildConfigSection(AimlockTab)
+    SaveManager:BuildConfigSection(ESPTab)
+    SaveManager:BuildConfigSection(MiscTab)
+end)
 
 -- ==================== ABA AIMBOT ====================
 AimbotTab:AddSection("Configurações do Aimbot")
@@ -432,7 +419,6 @@ ESPTab:AddToggle("ESPOnlyEnemies", {
     Default = false,
     Callback = function(v)
         settings.esp.onlyEnemies = v
-        -- Recriar ESP
         for _, h in pairs(espHighlights) do if h then h:Destroy() end end
         for _, name in pairs(espNameLabels) do
             if name and name.Parent and name.Parent.Parent then name.Parent.Parent:Destroy() end
@@ -470,7 +456,7 @@ MiscTab:AddSection("Configurações do Script")
 MiscTab:AddButton({
     Title = "Salvar configuração",
     Callback = function()
-        pcall(function() if SaveManager then SaveManager:Save() end end)
+        pcall(function() SaveManager:Save() end)
         Fluent:Notify({ Title = "Sucesso", Content = "Configurações salvas!", Duration = 2 })
     end
 })
@@ -478,7 +464,7 @@ MiscTab:AddButton({
 MiscTab:AddButton({
     Title = "Carregar configuração",
     Callback = function()
-        pcall(function() if SaveManager then SaveManager:Load() end end)
+        pcall(function() SaveManager:Load() end)
         Fluent:Notify({ Title = "Sucesso", Content = "Configurações carregadas!", Duration = 2 })
     end
 })
@@ -486,7 +472,7 @@ MiscTab:AddButton({
 MiscTab:AddButton({
     Title = "Resetar configurações",
     Callback = function()
-        pcall(function() if SaveManager then SaveManager:Reset() end end)
+        pcall(function() SaveManager:Reset() end)
         Fluent:Notify({ Title = "Aviso", Content = "Configurações resetadas!", Duration = 2 })
     end
 })
@@ -498,7 +484,7 @@ MiscTab:AddButton({
 
 MiscTab:AddParagraph({
     Title = "Informações",
-    Content = "Universal Tool v3.0\nDesenvolvido com Fluent UI\nESP simplificado"
+    Content = "Universal Tool v3.1\nDesenvolvido com Fluent UI\nESP simplificado"
 })
 
 -- Notificação inicial
@@ -510,5 +496,5 @@ Fluent:Notify({
 })
 
 -- Carregar configurações salvas
-pcall(function() if SaveManager then SaveManager:LoadAutoloadConfig() end end)
+pcall(function() SaveManager:LoadAutoloadConfig() end)
 Window:SelectTab(1)
