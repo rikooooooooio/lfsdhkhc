@@ -1,14 +1,12 @@
 --[[
-    Universal Tool – WindUI (Documentação Oficial)
+    Universal Tool – WindUI (Estável)
     Aimbot configurável | ESP (Box + Nome)
+    Sem notificações automáticas
 ]]
 
 -- Carregar WindUI
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-if not WindUI then
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Erro", Text = "Falha ao carregar WindUI", Duration = 5})
-    return
-end
+if not WindUI then return end
 
 -- Serviços
 local Players = game:GetService("Players")
@@ -29,16 +27,22 @@ local espNameLabels = {}
 
 -- Função para verificar inimigo
 local function isEnemy(p)
-    if p == LocalPlayer then return false end
-    if settings.esp.onlyEnemies then return LocalPlayer.Team ~= p.Team end
+    if not p or p == LocalPlayer then return false end
+    if settings.esp.onlyEnemies then
+        return LocalPlayer.Team ~= p.Team
+    end
     return true
 end
 
--- Obter parte do corpo alvo
+-- Obter parte do corpo alvo (com verificação de nil)
 local function getTargetPart(char)
-    return char:FindFirstChild(settings.aimbot.targetPart) or
-           char:FindFirstChild("UpperTorso") or
-           char:FindFirstChild("HumanoidRootPart")
+    if not char then return nil end
+    local part = char:FindFirstChild(settings.aimbot.targetPart)
+    if part then return part end
+    part = char:FindFirstChild("UpperTorso")
+    if part then return part end
+    part = char:FindFirstChild("HumanoidRootPart")
+    return part
 end
 
 -- Aimbot: jogador mais próximo da mira
@@ -46,15 +50,18 @@ local function getClosestPlayerToCrosshair()
     local closestDist = settings.aimbot.fov
     local closest = nil
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
-            local part = getTargetPart(plr.Character)
-            if part then
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = plr
+        if plr ~= LocalPlayer and plr.Character then
+            local humanoid = plr.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local part = getTargetPart(plr.Character)
+                if part then
+                    local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                        if dist < closestDist then
+                            closestDist = dist
+                            closest = plr
+                        end
                     end
                 end
             end
@@ -86,10 +93,12 @@ local function setupESP(player)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = char
 
-    -- Nome (Billboard)
+    -- Billboard para o nome
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Billboard"
-    billboard.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+    local adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+    if not adornee then return end
+    billboard.Adornee = adornee
     billboard.Size = UDim2.new(0, 4, 0, 4)
     billboard.StudsOffset = Vector3.new(0, 2.2, 0)
     billboard.AlwaysOnTop = true
@@ -144,17 +153,18 @@ local function updateESP()
 end
 
 -- Inicializar ESP para jogadores existentes e futuros
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        plr.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(plr) then setupESP(plr) end end)
-        if plr.Character and isEnemy(plr) then setupESP(plr) end
-    end
-end
-Players.PlayerAdded:Connect(function(plr)
+local function initPlayer(plr)
     if plr == LocalPlayer then return end
-    plr.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(plr) then setupESP(plr) end end)
+    local function onChar()
+        task.wait(0.5)
+        if isEnemy(plr) then setupESP(plr) end
+    end
+    plr.CharacterAdded:Connect(onChar)
     if plr.Character and isEnemy(plr) then setupESP(plr) end
-end)
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do initPlayer(plr) end
+Players.PlayerAdded:Connect(initPlayer)
 
 -- Loop principal (Aimbot)
 RunService.RenderStepped:Connect(function()
@@ -165,13 +175,15 @@ RunService.RenderStepped:Connect(function()
             local target = getClosestPlayerToCrosshair()
             if target and target.Character then
                 local part = getTargetPart(target.Character)
-                if part then smoothCameraLookAt(part.Position, settings.aimbot.smoothness) end
+                if part then
+                    smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
+                end
             end
         end
     end
 end)
 
--- ==================== INTERFACE WINDUI (Formato correto) ====================
+-- ==================== INTERFACE WINDUI ====================
 local Window = WindUI:CreateWindow({
     Title = "Universal Tool",
     Author = "System",
@@ -186,7 +198,7 @@ local Window = WindUI:CreateWindow({
 
 if not Window then return end
 
--- Abas (usando tabela com Title e Icon)
+-- Abas
 local AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "crosshair" })
 local ESPTab = Window:Tab({ Title = "ESP", Icon = "eye" })
 
@@ -233,11 +245,7 @@ AimbotTab:Keybind({
     Icon = "key",
     Default = "None",
     Callback = function(key)
-        if key == "None" then
-            settings.aimbot.keybind = nil
-        else
-            settings.aimbot.keybind = key
-        end
+        settings.aimbot.keybind = (key == "None" and nil or key)
     end
 })
 
@@ -271,7 +279,7 @@ ESPTab:Toggle({
     Default = false,
     Callback = function(v)
         settings.esp.onlyEnemies = v
-        -- Recriar ESP com nova configuração
+        -- Recriar ESP
         for _, h in pairs(espHighlights) do if h then h:Destroy() end end
         for _, n in pairs(espNameLabels) do if n and n.Parent then n.Parent:Destroy() end end
         espHighlights = {}
@@ -286,12 +294,4 @@ ESPTab:Button({
     Title = "Fechar UI",
     Icon = "door-closed",
     Callback = function() Window:Destroy() end
-})
-
--- Notificação de carregamento
-WindUI:Notify({
-    Title = "Universal Tool",
-    Icon = "rocket",
-    Content = "Script carregado! Aimbot e ESP prontos.",
-    Duration = 4
 })
