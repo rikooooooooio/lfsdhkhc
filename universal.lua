@@ -1,46 +1,47 @@
 --[[
-    Universal Tool – WindUI (Sintaxe Corrigida)
+    Universal Tool – WindUI (Compatível)
     Aimbot configurável | ESP (Box + Nome)
 ]]
 
--- ==================== CARREGAR WINDUI ====================
+-- Carregar WindUI
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 if not WindUI then
     game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Erro", Text = "Falha ao carregar WindUI", Duration = 5})
     return
 end
 
--- ==================== SERVIÇOS ====================
+-- Serviços
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- ==================== CONFIGURAÇÕES ====================
+-- Configurações
 local settings = {
     aimbot = {enabled = false, smoothness = 10, fov = 200, targetPart = "Head", keybind = nil},
     esp = {showBox = true, showName = true, teamColor = true, onlyEnemies = false}
 }
 
--- ==================== VARIÁVEIS ====================
+-- Variáveis ESP
 local espHighlights = {}
 local espNameLabels = {}
 
--- ==================== FUNÇÕES AUXILIARES ====================
+-- Função para verificar inimigo
 local function isEnemy(p)
     if p == LocalPlayer then return false end
     if settings.esp.onlyEnemies then return LocalPlayer.Team ~= p.Team end
     return true
 end
 
+-- Função para obter a parte do corpo alvo
 local function getTargetPart(char)
     return char:FindFirstChild(settings.aimbot.targetPart) or
            char:FindFirstChild("UpperTorso") or
            char:FindFirstChild("HumanoidRootPart")
 end
 
--- ==================== AIMBOT ====================
+-- Aimbot: obter jogador mais próximo da mira
 local function getClosestPlayerToCrosshair()
     local closestDist = settings.aimbot.fov
     local closest = nil
@@ -62,6 +63,7 @@ local function getClosestPlayerToCrosshair()
     return closest
 end
 
+-- Suavidade da mira
 local function smoothCameraLookAt(pos, smooth)
     if not pos then return end
     local s = smooth or 10
@@ -70,7 +72,7 @@ local function smoothCameraLookAt(pos, smooth)
     Camera.CFrame = current:Lerp(target, 1/s)
 end
 
--- ==================== ESP ====================
+-- Criar ESP para um jogador
 local function setupESP(player)
     if espHighlights[player] then return end
     local char = player.Character
@@ -106,6 +108,7 @@ local function setupESP(player)
     billboard.Parent = char
 end
 
+-- Atualizar ESP a cada frame
 local function updateESP()
     for player, highlight in pairs(espHighlights) do
         local char = player.Character
@@ -136,7 +139,7 @@ local function updateESP()
     end
 end
 
--- Inicializar ESP
+-- Inicializar ESP para todos os jogadores
 for _, plr in ipairs(Players:GetPlayers()) do
     if plr ~= LocalPlayer then
         plr.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(plr) then setupESP(plr) end end)
@@ -149,7 +152,7 @@ Players.PlayerAdded:Connect(function(plr)
     if plr.Character and isEnemy(plr) then setupESP(plr) end
 end)
 
--- ==================== LOOP PRINCIPAL ====================
+-- Loop principal
 RunService.RenderStepped:Connect(function()
     updateESP()
     if settings.aimbot.enabled then
@@ -164,7 +167,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== INTERFACE WINDUI (Sintaxe 100% compatível) ====================
+-- ==================== INTERFACE WINDUI ====================
 local Window = WindUI:CreateWindow({
     Title = "Universal Tool",
     Author = "System",
@@ -182,7 +185,7 @@ if not Window then
     return
 end
 
--- Criar abas (usando string para título e ícone)
+-- Criar abas (usando string e ícone)
 local AimbotTab = Window:Tab("Aimbot", "crosshair")
 local ESPTab = Window:Tab("ESP", "eye")
 
@@ -192,7 +195,7 @@ AimbotTab:Section({Title = "Configurações do Aimbot"})
 AimbotTab:Toggle({
     Title = "Ativar Aimbot",
     Icon = "target",
-    Value = false,
+    Default = false,
     Callback = function(v) settings.aimbot.enabled = v end
 })
 
@@ -202,7 +205,7 @@ AimbotTab:Slider({
     Min = 1,
     Max = 50,
     Step = 1,
-    Value = 10,
+    Default = 10,
     Callback = function(v) settings.aimbot.smoothness = v end
 })
 
@@ -212,7 +215,7 @@ AimbotTab:Slider({
     Min = 50,
     Max = 400,
     Step = 10,
-    Value = 200,
+    Default = 200,
     Callback = function(v) settings.aimbot.fov = v end
 })
 
@@ -220,14 +223,14 @@ AimbotTab:Dropdown({
     Title = "Parte do corpo",
     Icon = "person-standing",
     Values = {"Head", "UpperTorso", "HumanoidRootPart"},
-    Value = "Head",
+    Default = "Head",
     Callback = function(v) settings.aimbot.targetPart = v end
 })
 
 AimbotTab:Keybind({
     Title = "Tecla de ativação",
     Icon = "key",
-    Value = "None",
+    Default = "None",
     Callback = function(key)
         settings.aimbot.keybind = (key == "None" and nil or key)
     end
@@ -239,28 +242,28 @@ ESPTab:Section({Title = "Elementos do ESP"})
 ESPTab:Toggle({
     Title = "Caixa (Box)",
     Icon = "bounding-box",
-    Value = true,
+    Default = true,
     Callback = function(v) settings.esp.showBox = v end
 })
 
 ESPTab:Toggle({
     Title = "Nome",
     Icon = "text",
-    Value = true,
+    Default = true,
     Callback = function(v) settings.esp.showName = v end
 })
 
 ESPTab:Toggle({
     Title = "Cor por time",
     Icon = "palette",
-    Value = true,
+    Default = true,
     Callback = function(v) settings.esp.teamColor = v end
 })
 
 ESPTab:Toggle({
     Title = "Apenas inimigos",
     Icon = "swords",
-    Value = false,
+    Default = false,
     Callback = function(v)
         settings.esp.onlyEnemies = v
         -- Recriar ESP
