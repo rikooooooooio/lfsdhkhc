@@ -1,9 +1,14 @@
 --[[
     Script Universal com Aimbot, Aimlock e ESP
-    UI nativa e totalmente funcional
-    Sem dependências externas
+    UI com Fluent Library
 ]]
 
+-- ==================== CARREGAR FLUENT ====================
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- ==================== SERVIÇOS ====================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -266,6 +271,38 @@ local function updateESP()
     end
 end
 
+-- ==================== DETECTAR NOVOS JOGADORES ====================
+local function onCharacterAdded(player)
+    if player == LocalPlayer then return end
+    player.CharacterAdded:Connect(function(character)
+        task.wait(0.5)
+        if isEnemy(player) and settings.esp.enabled then
+            createESP(player)
+        end
+    end)
+    if player.Character and isEnemy(player) and settings.esp.enabled then
+        createESP(player)
+    end
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        onCharacterAdded(player)
+    end
+end
+
+Players.PlayerAdded:Connect(onCharacterAdded)
+Players.PlayerRemoving:Connect(function(player)
+    if espBillboards[player] then
+        espBillboards[player]:Destroy()
+        espBillboards[player] = nil
+    end
+    if espHighlights[player] then
+        espHighlights[player]:Destroy()
+        espHighlights[player] = nil
+    end
+end)
+
 -- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
     if settings.esp.enabled then
@@ -308,369 +345,244 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== UI NATIVA (SEM DEPENDÊNCIAS) ====================
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "UniversalGUI"
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-screenGui.ResetOnSpawn = false
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 380, 0, 480)
-mainFrame.Position = UDim2.new(0.5, -190, 0.5, -240)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-mainFrame.BackgroundTransparency = 0.05
-mainFrame.BorderSizePixel = 1
-mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
-
--- Barra de título e arrastar
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 30)
-titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-titleBar.Parent = mainFrame
-
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -30, 1, 0)
-titleLabel.Position = UDim2.new(0, 5, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "  ⚡ Universal Tool v3.0"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 16
-titleLabel.Parent = titleBar
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 1, 0)
-closeBtn.Position = UDim2.new(1, -30, 0, 0)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.Parent = titleBar
-closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
-
--- Botões das abas
-local tabButtons = {}
-local tabContents = {}
-
-local function createTab(name, buttonText)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 90, 0, 30)
-    btn.Position = UDim2.new(0, 10 + (#tabButtons * 100), 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    btn.Text = buttonText
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.Parent = mainFrame
-
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, -20, 1, -80)
-    content.Position = UDim2.new(0, 10, 0, 70)
-    content.BackgroundTransparency = 1
-    content.BorderSizePixel = 0
-    content.CanvasSize = UDim2.new(0, 0, 0, 0)
-    content.ScrollBarThickness = 6
-    content.Visible = false
-    content.Parent = mainFrame
-
-    table.insert(tabButtons, {btn = btn, content = content, name = name})
-    return content
-end
-
-local function selectTab(index)
-    for i, tab in ipairs(tabButtons) do
-        tab.content.Visible = (i == index)
-        tab.btn.BackgroundColor3 = (i == index) and Color3.fromRGB(80, 80, 120) or Color3.fromRGB(60, 60, 80)
-    end
-end
+-- ==================== UI COM FLUENT ====================
+local Window = Fluent:CreateWindow({
+    Title = "Universal Tool " .. Fluent.Version,
+    SubTitle = "Aimbot | Aimlock | ESP",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 480),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
 
 -- Criar abas
-local aimbotTab = createTab("Aimbot", "🎯 Aimbot")
-local aimlockTab = createTab("Aimlock", "🔒 Aimlock")
-local espTab = createTab("ESP", "👁️ ESP")
+local Tabs = {
+    Aimbot = Window:AddTab({ Title = "Aimbot", Icon = "target" }),
+    Aimlock = Window:AddTab({ Title = "Aimlock", Icon = "lock" }),
+    ESP = Window:AddTab({ Title = "ESP", Icon = "eye" })
+}
 
--- Helper: Checkbox
-local function addCheckbox(parent, text, getter, setter, yPos)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -20, 0, 30)
-    frame.Position = UDim2.new(0, 0, 0, yPos)
-    frame.BackgroundTransparency = 1
-    frame.Parent = parent
+-- Carregar SaveManager e InterfaceManager
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+InterfaceManager:BuildInterfaceSection(Tabs.Aimbot)
+InterfaceManager:BuildInterfaceSection(Tabs.Aimlock)
+InterfaceManager:BuildInterfaceSection(Tabs.ESP)
+SaveManager:BuildConfigSection(Tabs.Aimbot)
+SaveManager:BuildConfigSection(Tabs.Aimlock)
+SaveManager:BuildConfigSection(Tabs.ESP)
 
-    local check = Instance.new("TextButton")
-    check.Size = UDim2.new(0, 25, 0, 25)
-    check.BackgroundColor3 = getter() and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
-    check.Text = getter() and "✔" or ""
-    check.TextColor3 = Color3.fromRGB(255, 255, 255)
-    check.Font = Enum.Font.GothamBold
-    check.TextSize = 18
-    check.Parent = frame
+-- ==================== ABA AIMBOT ====================
+local aimbotSection = Tabs.Aimbot:AddSection("Configurações do Aimbot")
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -35, 1, 0)
-    label.Position = UDim2.new(0, 35, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.Parent = frame
-
-    check.MouseButton1Click:Connect(function()
-        local newVal = not getter()
-        setter(newVal)
-        check.BackgroundColor3 = newVal and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
-        check.Text = newVal and "✔" or ""
-    end)
-    return frame
-end
-
--- Helper: Slider
-local function addSlider(parent, text, minVal, maxVal, getter, setter, yPos)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -20, 0, 50)
-    frame.Position = UDim2.new(0, 0, 0, yPos)
-    frame.BackgroundTransparency = 1
-    frame.Parent = parent
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.BackgroundTransparency = 1
-    label.Text = text .. ": " .. tostring(getter())
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.Parent = frame
-
-    local slider = Instance.new("Frame")
-    slider.Size = UDim2.new(1, 0, 0, 4)
-    slider.Position = UDim2.new(0, 0, 0, 25)
-    slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    slider.BorderSizePixel = 0
-    slider.Parent = frame
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((getter() - minVal) / (maxVal - minVal), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
-    fill.BorderSizePixel = 0
-    fill.Parent = slider
-
-    local valueBtn = Instance.new("TextButton")
-    valueBtn.Size = UDim2.new(0, 30, 0, 20)
-    valueBtn.Position = UDim2.new((getter() - minVal) / (maxVal - minVal), -15, 0, -8)
-    valueBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-    valueBtn.Text = tostring(getter())
-    valueBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-    valueBtn.Font = Enum.Font.GothamBold
-    valueBtn.TextSize = 12
-    valueBtn.Parent = frame
-
-    local dragging = false
-    local function updateSlider(input)
-        local pos = input.Position.X - slider.AbsolutePosition.X
-        local newPercent = math.clamp(pos / slider.AbsoluteSize.X, 0, 1)
-        local newValue = math.floor(minVal + (maxVal - minVal) * newPercent)
-        setter(newValue)
-        fill.Size = UDim2.new(newPercent, 0, 1, 0)
-        valueBtn.Position = UDim2.new(newPercent, -15, 0, -8)
-        valueBtn.Text = tostring(newValue)
-        label.Text = text .. ": " .. tostring(newValue)
+local aimbotToggle = Tabs.Aimbot:AddToggle("AimbotEnabled", {
+    Title = "Ativar Aimbot",
+    Description = "Ativa o sistema de mira automática",
+    Default = false,
+    Callback = function(value)
+        settings.aimbot.enabled = value
     end
-
-    valueBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateSlider(input)
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    return frame
-end
-
--- Helper: Dropdown (simplificado)
-local function addDropdown(parent, text, options, getter, setter, yPos)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -20, 0, 40)
-    frame.Position = UDim2.new(0, 0, 0, yPos)
-    frame.BackgroundTransparency = 1
-    frame.Parent = parent
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.Parent = frame
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 25)
-    btn.Position = UDim2.new(0, 0, 0, 20)
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    btn.Text = getter()
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.Parent = frame
-
-    local dropdown = Instance.new("Frame")
-    dropdown.Size = UDim2.new(1, 0, 0, #options * 25)
-    dropdown.Position = UDim2.new(0, 0, 0, 45)
-    dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    dropdown.BorderSizePixel = 1
-    dropdown.Visible = false
-    dropdown.Parent = frame
-
-    for i, opt in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 25)
-        optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 25)
-        optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-        optBtn.Text = opt
-        optBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        optBtn.Font = Enum.Font.Gotham
-        optBtn.TextSize = 14
-        optBtn.Parent = dropdown
-        optBtn.MouseButton1Click:Connect(function()
-            setter(opt)
-            btn.Text = opt
-            dropdown.Visible = false
-        end)
-    end
-
-    btn.MouseButton1Click:Connect(function()
-        dropdown.Visible = not dropdown.Visible
-    end)
-    return frame
-end
-
--- Helper: Input (tecla)
-local function addKeybindInput(parent, text, getter, setter, yPos)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -20, 0, 40)
-    frame.Position = UDim2.new(0, 0, 0, yPos)
-    frame.BackgroundTransparency = 1
-    frame.Parent = parent
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.Parent = frame
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 25)
-    btn.Position = UDim2.new(0, 0, 0, 20)
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    btn.Text = getter() or "None"
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.Parent = frame
-
-    local listening = false
-    btn.MouseButton1Click:Connect(function()
-        if listening then return end
-        listening = true
-        btn.Text = "Aperte uma tecla..."
-        local connection
-        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
-            if input.KeyCode ~= Enum.KeyCode.Unknown then
-                local key = input.KeyCode.Name
-                setter(key)
-                btn.Text = key
-                listening = false
-                connection:Disconnect()
-            end
-        end)
-        task.wait(5)
-        if listening then
-            listening = false
-            btn.Text = getter() or "None"
-            connection:Disconnect()
-        end
-    end)
-    return frame
-end
-
--- Preencher Aimbot Tab
-local y = 10
-addCheckbox(aimbotTab, "Ativar Aimbot", function() return settings.aimbot.enabled end, function(v) settings.aimbot.enabled = v end, y); y = y + 35
-addSlider(aimbotTab, "Suavidade", 1, 50, function() return settings.aimbot.smoothness end, function(v) settings.aimbot.smoothness = v end, y); y = y + 55
-addSlider(aimbotTab, "Campo de visão (FOV)", 50, 500, function() return settings.aimbot.fov end, function(v) settings.aimbot.fov = v end, y); y = y + 55
-addDropdown(aimbotTab, "Parte do corpo", {"Head", "UpperTorso", "HumanoidRootPart"}, function() return settings.aimbot.targetPart end, function(v) settings.aimbot.targetPart = v end, y); y = y + 50
-addKeybindInput(aimbotTab, "Tecla de ativação (None = sempre)", function() return settings.aimbot.keybind end, function(v) settings.aimbot.keybind = v end, y)
-y = y + 50
-aimbotTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
-
--- Preencher Aimlock Tab
-y = 10
-addCheckbox(aimlockTab, "Ativar Aimlock", function() return settings.aimlock.enabled end, function(v) settings.aimlock.enabled = v end, y); y = y + 35
-addSlider(aimlockTab, "Distância máxima", 50, 300, function() return settings.aimlock.maxDistance end, function(v) settings.aimlock.maxDistance = v end, y); y = y + 55
-addKeybindInput(aimlockTab, "Tecla de ativação", function() return settings.aimlock.lockKey end, function(v) settings.aimlock.lockKey = v end, y)
-y = y + 50
-aimlockTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
-
--- Preencher ESP Tab
-y = 10
-addCheckbox(espTab, "Ativar ESP", function() return settings.esp.enabled end, function(v) settings.esp.enabled = v; if v then for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and isEnemy(p) then createESP(p) end end else for _, b in pairs(espBillboards) do if b then b:Destroy() end end for _, h in pairs(espHighlights) do if h then h:Destroy() end end espBillboards = {} espHighlights = {} end end, y); y = y + 35
-addCheckbox(espTab, "Mostrar Caixa (Box)", function() return settings.esp.showBox end, function(v) settings.esp.showBox = v end, y); y = y + 35
-addCheckbox(espTab, "Mostrar Nome", function() return settings.esp.showName end, function(v) settings.esp.showName = v end, y); y = y + 35
-addCheckbox(espTab, "Mostrar Vida", function() return settings.esp.showHealth end, function(v) settings.esp.showHealth = v end, y); y = y + 35
-addCheckbox(espTab, "Mostrar Distância", function() return settings.esp.showDistance end, function(v) settings.esp.showDistance = v end, y); y = y + 35
-addCheckbox(espTab, "Cor por Time", function() return settings.esp.teamColor end, function(v) settings.esp.teamColor = v end, y); y = y + 35
-addCheckbox(espTab, "Apenas Inimigos", function() return settings.esp.onlyEnemies end, function(v) settings.esp.onlyEnemies = v; for _, b in pairs(espBillboards) do if b then b:Destroy() end end for _, h in pairs(espHighlights) do if h then h:Destroy() end end espBillboards = {} espHighlights = {} if settings.esp.enabled then for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and isEnemy(p) then createESP(p) end end end end, y)
-y = y + 35
-espTab.CanvasSize = UDim2.new(0, 0, 0, y + 20)
-
--- Selecionar primeira aba
-selectTab(1)
-for i, tab in ipairs(tabButtons) do
-    tab.btn.MouseButton1Click:Connect(function() selectTab(i) end)
-end
-
--- Sistema de arrastar janela
-local dragStart, dragFrameStart, dragging = nil, nil, false
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        dragFrameStart = mainFrame.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(dragFrameStart.X.Scale, dragFrameStart.X.Offset + delta.X, dragFrameStart.Y.Scale, dragFrameStart.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
--- Notificação inicial
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Universal Tool",
-    Text = "Script carregado com sucesso! Use a UI para configurar.",
-    Duration = 4
 })
+
+local smoothnessSlider = Tabs.Aimbot:AddSlider("AimbotSmoothness", {
+    Title = "Suavidade",
+    Description = "Define a suavidade da mira (1 = instantâneo, 50 = muito suave)",
+    Default = 10,
+    Min = 1,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(value)
+        settings.aimbot.smoothness = value
+    end
+})
+
+local fovSlider = Tabs.Aimbot:AddSlider("AimbotFOV", {
+    Title = "Campo de visão (FOV)",
+    Description = "Define o raio de detecção dos alvos em pixels",
+    Default = 200,
+    Min = 50,
+    Max = 500,
+    Rounding = 1,
+    Callback = function(value)
+        settings.aimbot.fov = value
+    end
+})
+
+local targetPartDropdown = Tabs.Aimbot:AddDropdown("AimbotTargetPart", {
+    Title = "Parte do corpo",
+    Description = "Seleciona a parte do corpo onde o aimbot mira",
+    Values = {"Head", "UpperTorso", "HumanoidRootPart"},
+    Default = 1,
+    Multi = false,
+    Callback = function(value)
+        settings.aimbot.targetPart = value
+    end
+})
+
+local aimbotKeybind = Tabs.Aimbot:AddKeybind("AimbotKeybind", {
+    Title = "Tecla de ativação",
+    Description = "Tecla para ativar o aimbot (deixe vazio para sempre ativo)",
+    Mode = "Hold",
+    Default = "None",
+    Callback = function(value)
+        if value then
+            -- Tecla pressionada
+        end
+    end,
+    ChangedCallback = function(newKey)
+        if newKey == "None" then
+            settings.aimbot.keybind = nil
+        else
+            settings.aimbot.keybind = newKey
+        end
+    end
+})
+
+-- ==================== ABA AIMLOCK ====================
+local aimlockSection = Tabs.Aimlock:AddSection("Configurações do Aimlock")
+
+local aimlockToggle = Tabs.Aimlock:AddToggle("AimlockEnabled", {
+    Title = "Ativar Aimlock",
+    Description = "Ativa o sistema de travamento de mira",
+    Default = false,
+    Callback = function(value)
+        settings.aimlock.enabled = value
+    end
+})
+
+local distanceSlider = Tabs.Aimlock:AddSlider("AimlockDistance", {
+    Title = "Distância máxima",
+    Description = "Distância máxima para detectar alvos (estuds)",
+    Default = 100,
+    Min = 50,
+    Max = 300,
+    Rounding = 1,
+    Callback = function(value)
+        settings.aimlock.maxDistance = value
+    end
+})
+
+local aimlockKeybind = Tabs.Aimlock:AddKeybind("AimlockKeybind", {
+    Title = "Tecla de ativação",
+    Description = "Tecla para travar no alvo (segurar)",
+    Mode = "Hold",
+    Default = "Q",
+    Callback = function(value)
+        if value then
+            -- Tecla pressionada
+        end
+    end,
+    ChangedCallback = function(newKey)
+        settings.aimlock.lockKey = newKey
+    end
+})
+
+-- ==================== ABA ESP ====================
+local espSection = Tabs.ESP:AddSection("Configurações do ESP")
+
+local espToggle = Tabs.ESP:AddToggle("ESPEnabled", {
+    Title = "Ativar ESP",
+    Description = "Ativa todas as funções do ESP",
+    Default = false,
+    Callback = function(value)
+        settings.esp.enabled = value
+        if value then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and isEnemy(player) then
+                    createESP(player)
+                end
+            end
+        else
+            for _, billboard in pairs(espBillboards) do
+                if billboard then billboard:Destroy() end
+            end
+            for _, highlight in pairs(espHighlights) do
+                if highlight then highlight:Destroy() end
+            end
+            espBillboards = {}
+            espHighlights = {}
+        end
+    end
+})
+
+local boxToggle = Tabs.ESP:AddToggle("ESPBox", {
+    Title = "Mostrar Caixa (Box)",
+    Description = "Exibe um contorno colorido ao redor do jogador",
+    Default = true,
+    Callback = function(value)
+        settings.esp.showBox = value
+    end
+})
+
+local nameToggle = Tabs.ESP:AddToggle("ESPName", {
+    Title = "Mostrar Nome",
+    Description = "Exibe o nome do jogador acima do personagem",
+    Default = true,
+    Callback = function(value)
+        settings.esp.showName = value
+    end
+})
+
+local healthToggle = Tabs.ESP:AddToggle("ESPHealth", {
+    Title = "Mostrar Vida",
+    Description = "Exibe a barra de vida do jogador",
+    Default = true,
+    Callback = function(value)
+        settings.esp.showHealth = value
+    end
+})
+
+local distanceToggle = Tabs.ESP:AddToggle("ESPDistance", {
+    Title = "Mostrar Distância",
+    Description = "Exibe a distância até o jogador",
+    Default = true,
+    Callback = function(value)
+        settings.esp.showDistance = value
+    end
+})
+
+local teamColorToggle = Tabs.ESP:AddToggle("ESPTeamColor", {
+    Title = "Cor por Time",
+    Description = "Aliados aparecem em azul, inimigos em vermelho",
+    Default = true,
+    Callback = function(value)
+        settings.esp.teamColor = value
+    end
+})
+
+local onlyEnemiesToggle = Tabs.ESP:AddToggle("ESPOnlyEnemies", {
+    Title = "Apenas Inimigos",
+    Description = "Mostra ESP apenas para jogadores de times opostos",
+    Default = false,
+    Callback = function(value)
+        settings.esp.onlyEnemies = value
+        for _, billboard in pairs(espBillboards) do
+            if billboard then billboard:Destroy() end
+        end
+        for _, highlight in pairs(espHighlights) do
+            if highlight then highlight:Destroy() end
+        end
+        espBillboards = {}
+        espHighlights = {}
+        if settings.esp.enabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and isEnemy(player) then
+                    createESP(player)
+                end
+            end
+        end
+    end
+})
+
+-- ==================== NOTIFICAÇÃO INICIAL ====================
+Fluent:Notify({
+    Title = "Universal Tool",
+    Content = "Script carregado com sucesso!",
+    SubContent = "Use a interface para configurar",
+    Duration = 5
+})
+
+-- ==================== CARREGAR CONFIGURAÇÕES ====================
+SaveManager:LoadAutoloadConfig()
+Window:SelectTab(1)
