@@ -1,6 +1,6 @@
 --[[
     Script Universal com Aimbot, Aimlock e ESP
-    UI com Fluent Library
+    Fluent UI - Versão Corrigida (UI menor e sem erros de tipo)
 ]]
 
 -- ==================== CARREGAR FLUENT ====================
@@ -67,9 +67,9 @@ local function getTargetPart(character)
            (character:FindFirstChildWhichIsA("BasePart"))
 end
 
--- ==================== AIMBOT ====================
+-- ==================== AIMBOT (CORRIGIDO) ====================
 local function getClosestPlayerToCrosshair()
-    local closestDistance = settings.aimbot.fov
+    local closestDistance = tonumber(settings.aimbot.fov) or 200
     local closestPlayer = nil
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
@@ -91,16 +91,17 @@ end
 
 local function smoothCameraLookAt(targetPosition, smoothness)
     if not targetPosition then return end
+    local smooth = tonumber(smoothness) or 10
     local currentCFrame = Camera.CFrame
     local targetCFrame = CFrame.new(currentCFrame.Position, targetPosition)
-    local newCFrame = currentCFrame:Lerp(targetCFrame, 1 / smoothness)
+    local newCFrame = currentCFrame:Lerp(targetCFrame, 1 / smooth)
     Camera.CFrame = newCFrame
 end
 
 -- ==================== AIMLOCK ====================
 local function getNearestPlayerInRange()
     local nearest = nil
-    local minDist = settings.aimlock.maxDistance
+    local minDist = tonumber(settings.aimlock.maxDistance) or 100
     local playerPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
     if not playerPos then return nil end
 
@@ -333,7 +334,7 @@ RunService.RenderStepped:Connect(function()
     end
 
     if settings.aimbot.enabled and not isAimlocking then
-        if not settings.aimbot.keybind or UserInputService:IsKeyDown(Enum.KeyCode[settings.aimbot.keybind]) then
+        if not settings.aimbot.keybind or settings.aimbot.keybind == "None" or UserInputService:IsKeyDown(Enum.KeyCode[settings.aimbot.keybind]) then
             local targetPlayer = getClosestPlayerToCrosshair()
             if targetPlayer and targetPlayer.Character then
                 local part = getTargetPart(targetPlayer.Character)
@@ -345,12 +346,12 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== UI COM FLUENT ====================
+-- ==================== UI COM FLUENT (TAMANHO MENOR) ====================
 local Window = Fluent:CreateWindow({
-    Title = "Universal Tool " .. Fluent.Version,
+    Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 480),
+    TabWidth = 140,
+    Size = UDim2.fromOffset(450, 400),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
@@ -363,7 +364,7 @@ local Tabs = {
     ESP = Window:AddTab({ Title = "ESP", Icon = "eye" })
 }
 
--- Carregar SaveManager e InterfaceManager
+-- Configurar SaveManager
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 InterfaceManager:BuildInterfaceSection(Tabs.Aimbot)
@@ -374,7 +375,7 @@ SaveManager:BuildConfigSection(Tabs.Aimlock)
 SaveManager:BuildConfigSection(Tabs.ESP)
 
 -- ==================== ABA AIMBOT ====================
-local aimbotSection = Tabs.Aimbot:AddSection("Configurações do Aimbot")
+Tabs.Aimbot:AddSection("Configurações do Aimbot")
 
 local aimbotToggle = Tabs.Aimbot:AddToggle("AimbotEnabled", {
     Title = "Ativar Aimbot",
@@ -387,7 +388,7 @@ local aimbotToggle = Tabs.Aimbot:AddToggle("AimbotEnabled", {
 
 local smoothnessSlider = Tabs.Aimbot:AddSlider("AimbotSmoothness", {
     Title = "Suavidade",
-    Description = "Define a suavidade da mira (1 = instantâneo, 50 = muito suave)",
+    Description = "1 = instantâneo | 50 = muito suave",
     Default = 10,
     Min = 1,
     Max = 50,
@@ -399,7 +400,7 @@ local smoothnessSlider = Tabs.Aimbot:AddSlider("AimbotSmoothness", {
 
 local fovSlider = Tabs.Aimbot:AddSlider("AimbotFOV", {
     Title = "Campo de visão (FOV)",
-    Description = "Define o raio de detecção dos alvos em pixels",
+    Description = "Raio de detecção em pixels",
     Default = 200,
     Min = 50,
     Max = 500,
@@ -411,7 +412,6 @@ local fovSlider = Tabs.Aimbot:AddSlider("AimbotFOV", {
 
 local targetPartDropdown = Tabs.Aimbot:AddDropdown("AimbotTargetPart", {
     Title = "Parte do corpo",
-    Description = "Seleciona a parte do corpo onde o aimbot mira",
     Values = {"Head", "UpperTorso", "HumanoidRootPart"},
     Default = 1,
     Multi = false,
@@ -422,14 +422,8 @@ local targetPartDropdown = Tabs.Aimbot:AddDropdown("AimbotTargetPart", {
 
 local aimbotKeybind = Tabs.Aimbot:AddKeybind("AimbotKeybind", {
     Title = "Tecla de ativação",
-    Description = "Tecla para ativar o aimbot (deixe vazio para sempre ativo)",
     Mode = "Hold",
     Default = "None",
-    Callback = function(value)
-        if value then
-            -- Tecla pressionada
-        end
-    end,
     ChangedCallback = function(newKey)
         if newKey == "None" then
             settings.aimbot.keybind = nil
@@ -440,11 +434,11 @@ local aimbotKeybind = Tabs.Aimbot:AddKeybind("AimbotKeybind", {
 })
 
 -- ==================== ABA AIMLOCK ====================
-local aimlockSection = Tabs.Aimlock:AddSection("Configurações do Aimlock")
+Tabs.Aimlock:AddSection("Configurações do Aimlock")
 
 local aimlockToggle = Tabs.Aimlock:AddToggle("AimlockEnabled", {
     Title = "Ativar Aimlock",
-    Description = "Ativa o sistema de travamento de mira",
+    Description = "Trava a mira no inimigo mais próximo",
     Default = false,
     Callback = function(value)
         settings.aimlock.enabled = value
@@ -453,7 +447,7 @@ local aimlockToggle = Tabs.Aimlock:AddToggle("AimlockEnabled", {
 
 local distanceSlider = Tabs.Aimlock:AddSlider("AimlockDistance", {
     Title = "Distância máxima",
-    Description = "Distância máxima para detectar alvos (estuds)",
+    Description = "Em studs",
     Default = 100,
     Min = 50,
     Max = 300,
@@ -465,25 +459,19 @@ local distanceSlider = Tabs.Aimlock:AddSlider("AimlockDistance", {
 
 local aimlockKeybind = Tabs.Aimlock:AddKeybind("AimlockKeybind", {
     Title = "Tecla de ativação",
-    Description = "Tecla para travar no alvo (segurar)",
     Mode = "Hold",
     Default = "Q",
-    Callback = function(value)
-        if value then
-            -- Tecla pressionada
-        end
-    end,
     ChangedCallback = function(newKey)
         settings.aimlock.lockKey = newKey
     end
 })
 
 -- ==================== ABA ESP ====================
-local espSection = Tabs.ESP:AddSection("Configurações do ESP")
+Tabs.ESP:AddSection("Configurações do ESP")
 
 local espToggle = Tabs.ESP:AddToggle("ESPEnabled", {
     Title = "Ativar ESP",
-    Description = "Ativa todas as funções do ESP",
+    Description = "Mostra informações dos jogadores",
     Default = false,
     Callback = function(value)
         settings.esp.enabled = value
@@ -508,7 +496,6 @@ local espToggle = Tabs.ESP:AddToggle("ESPEnabled", {
 
 local boxToggle = Tabs.ESP:AddToggle("ESPBox", {
     Title = "Mostrar Caixa (Box)",
-    Description = "Exibe um contorno colorido ao redor do jogador",
     Default = true,
     Callback = function(value)
         settings.esp.showBox = value
@@ -517,7 +504,6 @@ local boxToggle = Tabs.ESP:AddToggle("ESPBox", {
 
 local nameToggle = Tabs.ESP:AddToggle("ESPName", {
     Title = "Mostrar Nome",
-    Description = "Exibe o nome do jogador acima do personagem",
     Default = true,
     Callback = function(value)
         settings.esp.showName = value
@@ -526,7 +512,6 @@ local nameToggle = Tabs.ESP:AddToggle("ESPName", {
 
 local healthToggle = Tabs.ESP:AddToggle("ESPHealth", {
     Title = "Mostrar Vida",
-    Description = "Exibe a barra de vida do jogador",
     Default = true,
     Callback = function(value)
         settings.esp.showHealth = value
@@ -535,7 +520,6 @@ local healthToggle = Tabs.ESP:AddToggle("ESPHealth", {
 
 local distanceToggle = Tabs.ESP:AddToggle("ESPDistance", {
     Title = "Mostrar Distância",
-    Description = "Exibe a distância até o jogador",
     Default = true,
     Callback = function(value)
         settings.esp.showDistance = value
@@ -544,7 +528,7 @@ local distanceToggle = Tabs.ESP:AddToggle("ESPDistance", {
 
 local teamColorToggle = Tabs.ESP:AddToggle("ESPTeamColor", {
     Title = "Cor por Time",
-    Description = "Aliados aparecem em azul, inimigos em vermelho",
+    Description = "Aliados = azul | Inimigos = vermelho",
     Default = true,
     Callback = function(value)
         settings.esp.teamColor = value
@@ -553,7 +537,6 @@ local teamColorToggle = Tabs.ESP:AddToggle("ESPTeamColor", {
 
 local onlyEnemiesToggle = Tabs.ESP:AddToggle("ESPOnlyEnemies", {
     Title = "Apenas Inimigos",
-    Description = "Mostra ESP apenas para jogadores de times opostos",
     Default = false,
     Callback = function(value)
         settings.esp.onlyEnemies = value
@@ -575,12 +558,12 @@ local onlyEnemiesToggle = Tabs.ESP:AddToggle("ESPOnlyEnemies", {
     end
 })
 
--- ==================== NOTIFICAÇÃO INICIAL ====================
+-- ==================== NOTIFICAÇÃO ====================
 Fluent:Notify({
     Title = "Universal Tool",
-    Content = "Script carregado com sucesso!",
-    SubContent = "Use a interface para configurar",
-    Duration = 5
+    Content = "Script carregado!",
+    SubContent = "Use as abas para configurar",
+    Duration = 4
 })
 
 -- ==================== CARREGAR CONFIGURAÇÕES ====================
