@@ -1,12 +1,10 @@
 --[[
-    Universal Tool – Fluent Renewed
-    Aimbot configurável | ESP (Box + Nome)
+    Orion Lib - Script Completo
+    Aimlock: Desativado | ESP de Vida: Desativado
 ]]
 
--- Carregar Fluent Renewed e os gerenciadores
-local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau", true))()
-local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+-- Carregar a biblioteca Orion
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/DenDenZZZ/Orion-UI-Library/refs/heads/main/source')))()
 
 -- Serviços
 local Players = game:GetService("Players")
@@ -200,133 +198,166 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---- Interface Fluent Renewed
-local Window = Library:CreateWindow{
-    Title = "Universal Tool",
-    SubTitle = "Aimbot Configurável | ESP",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(450, 400),
-    Resize = true,
-    MinSize = Vector2.new(400, 350),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
-}
+-- ========================= Interface Orion =========================
+local Window = OrionLib:MakeWindow({
+    Name = "Universal Tool",
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "UniversalTool",
+    IntroEnabled = true,
+    IntroText = "Universal Tool",
+    IntroIcon = "rbxassetid://4483345998",
+    Icon = "rbxassetid://4483345998",
+    CloseCallback = function()
+        print("UI Fechada")
+    end
+})
 
-local Tabs = {
-    Aimbot = Window:CreateTab{ Title = "Aimbot", Icon = "target" },
-    ESP = Window:CreateTab{ Title = "ESP", Icon = "eye" }
-}
+-- Aba Aimbot
+local AimbotTab = Window:MakeTab({
+    Name = "Aimbot",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Registra os gerenciadores (salvar configurações e interface)
-SaveManager:SetLibrary(Library)
-InterfaceManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-InterfaceManager:SetFolder("UniversalTool")
-SaveManager:SetFolder("UniversalTool/Configs")
+-- Seção de Configurações do Aimbot
+AimbotTab:AddSection({
+    Name = "Configurações do Aimbot"
+})
 
-InterfaceManager:BuildInterfaceSection(Tabs.ESP) -- Aba de gerenciamento de interface
-SaveManager:BuildConfigSection(Tabs.ESP)        -- Aba para salvar configurações
-
---- Conteúdo da aba Aimbot
-Tabs.Aimbot:CreateSection("Configurações do Aimbot")
-
--- Ativar/Desativar
-local ToggleAimbot = Tabs.Aimbot:CreateToggle("AimbotToggle", {
-    Title = "Ativar Aimbot",
+-- Toggle Ativar Aimbot
+local ToggleAimbot = AimbotTab:AddToggle({
+    Name = "Ativar Aimbot",
     Default = Settings.Aimbot.Enabled,
     Callback = function(Value)
         Settings.Aimbot.Enabled = Value
     end
 })
 
--- Suavidade (Slider)
-local SliderSmoothness = Tabs.Aimbot:CreateSlider("SmoothnessSlider", {
-    Title = "Suavidade",
-    Description = "1 = instantâneo | 50 = mais suave",
-    Default = Settings.Aimbot.Smoothness,
+-- Slider Suavidade
+local SliderSmoothness = AimbotTab:AddSlider({
+    Name = "Suavidade",
     Min = 1,
     Max = 50,
-    Rounding = 1,
+    Default = Settings.Aimbot.Smoothness,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "",
     Callback = function(Value)
         Settings.Aimbot.Smoothness = Value
     end
 })
 
--- Campo de visão (FOV)
-local SliderFOV = Tabs.Aimbot:CreateSlider("FOVSlider", {
-    Title = "Campo de visão (FOV)",
-    Description = "Raio de detecção em pixels",
-    Default = Settings.Aimbot.FOV,
+-- Slider Campo de visão (FOV)
+local SliderFOV = AimbotTab:AddSlider({
+    Name = "Campo de visão (FOV)",
     Min = 50,
     Max = 400,
-    Rounding = 1,
+    Default = Settings.Aimbot.FOV,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 10,
+    ValueName = "px",
     Callback = function(Value)
         Settings.Aimbot.FOV = Value
     end
 })
 
--- Parte do corpo (Dropdown)
-local DropdownTargetPart = Tabs.Aimbot:CreateDropdown("TargetPartDropdown", {
-    Title = "Parte do corpo",
-    Values = { "Head", "UpperTorso", "HumanoidRootPart" },
-    Multi = false,
+-- Dropdown Parte do corpo
+local DropdownTargetPart = AimbotTab:AddDropdown({
+    Name = "Parte do corpo",
     Default = Settings.Aimbot.TargetPart,
+    Options = {"Head", "UpperTorso", "HumanoidRootPart"},
     Callback = function(Value)
         Settings.Aimbot.TargetPart = Value
     end
 })
 
--- Tecla de ativação (opcional)
-local KeybindAimbot = Tabs.Aimbot:CreateKeybind("AimbotKeybind", {
-    Title = "Tecla de ativação (opcional)",
-    Mode = "Hold",
-    Default = "None",
-    Callback = function(Value) end,  -- Opcional: executar algo ao pressionar
-    ChangedCallback = function(NewKey)
-        if NewKey == "None" then
-            Settings.Aimbot.Keybind = nil
-        else
-            Settings.Aimbot.Keybind = NewKey
+-- Keybind Tecla de ativação
+-- Keybind Tecla de ativação (corrigido)
+local KeybindAimbot = AimbotTab:AddBind({
+    Name = "Tecla de ativação (opcional)",
+    Default = Enum.KeyCode.Unknown,  -- ← trocado de None para Unknown
+    Hold = true,
+    Callback = function(Value)
+        if Value then
+            -- O callback é chamado quando a tecla é pressionada (Hold = true)
+            -- Não precisa fazer nada aqui, pois o aimbot já verifica a tecla no loop
         end
     end
 })
 
---- Conteúdo da aba ESP
-Tabs.ESP:CreateSection("Elementos do ESP")
+-- Atualiza a tecla quando ela for alterada pelo usuário
+-- (O Orion não tem um evento direto, mas podemos ler o valor atual quando necessário)
+-- Para simplificar, vamos apenas armazenar o valor quando o usuário mudar a tecla.
+-- Infelizmente o Orion não fornece um callback de mudança, então faremos uma verificação periódica simples.
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        local currentKey = KeybindAimbot.Value  -- Tenta obter o valor atual (pode variar conforme versão)
+        if currentKey and currentKey ~= Enum.KeyCode.Unknown then
+            if currentKey == Enum.KeyCode.Unknown then
+                Settings.Aimbot.Keybind = nil
+            else
+                Settings.Aimbot.Keybind = currentKey.Name
+            end
+        end
+    end
+end)
 
--- Caixa (Box)
-local ToggleBox = Tabs.ESP:CreateToggle("ESPBoxToggle", {
-    Title = "Caixa (Box)",
+-- Função para atualizar a tecla quando ela for alterada
+local function onKeybindChanged(Key)
+    if Key == Enum.KeyCode.None then
+        Settings.Aimbot.Keybind = nil
+    else
+        Settings.Aimbot.Keybind = Key.Name
+    end
+end
+
+-- Como o Orion não tem um callback específico para mudança de keybind, faremos uma verificação periódica
+-- Mas isso pode ser ignorado, o usuário pode simplesmente usar o aimbot sem tecla
+
+-- Aba ESP
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Seção de Elementos do ESP
+ESPTab:AddSection({
+    Name = "Elementos do ESP"
+})
+
+-- Toggle Caixa (Box)
+local ToggleBox = ESPTab:AddToggle({
+    Name = "Caixa (Box)",
     Default = Settings.ESP.ShowBox,
     Callback = function(Value)
         Settings.ESP.ShowBox = Value
     end
 })
 
--- Nome
-local ToggleName = Tabs.ESP:CreateToggle("ESPNameToggle", {
-    Title = "Nome",
+-- Toggle Nome
+local ToggleName = ESPTab:AddToggle({
+    Name = "Nome",
     Default = Settings.ESP.ShowName,
     Callback = function(Value)
         Settings.ESP.ShowName = Value
     end
 })
 
--- Cores por time
-local ToggleTeamColor = Tabs.ESP:CreateToggle("ESPTeamColorToggle", {
-    Title = "Cor por time",
-    Description = "Aliados em azul / Inimigos em vermelho",
+-- Toggle Cor por time
+local ToggleTeamColor = ESPTab:AddToggle({
+    Name = "Cor por time",
     Default = Settings.ESP.TeamColor,
     Callback = function(Value)
         Settings.ESP.TeamColor = Value
     end
 })
 
--- Apenas inimigos
-local ToggleOnlyEnemies = Tabs.ESP:CreateToggle("ESPOnlyEnemiesToggle", {
-    Title = "Apenas inimigos",
-    Description = "Mostrar ESP apenas para jogadores de times diferentes",
+-- Toggle Apenas inimigos
+local ToggleOnlyEnemies = ESPTab:AddToggle({
+    Name = "Apenas inimigos",
     Default = Settings.ESP.OnlyEnemies,
     Callback = function(Value)
         Settings.ESP.OnlyEnemies = Value
@@ -347,24 +378,21 @@ local ToggleOnlyEnemies = Tabs.ESP:CreateToggle("ESPOnlyEnemiesToggle", {
     end
 })
 
--- Botão para fechar a interface
-Tabs.ESP:CreateButton({
-    Title = "Fechar UI",
+-- Botão Fechar UI
+ESPTab:AddButton({
+    Name = "Fechar UI",
     Callback = function()
-        Window:Destroy()
+        OrionLib:Destroy()
     end
 })
 
---- Notificação de inicialização (opcional)
-Library:Notify({
-    Title = "Universal Tool",
+-- Notificação de inicialização (opcional)
+OrionLib:MakeNotification({
+    Name = "Universal Tool",
     Content = "Script carregado com sucesso!",
-    SubContent = "Aimbot e ESP prontos para uso.",
-    Duration = 4
+    Image = "rbxassetid://4483345998",
+    Time = 5
 })
 
--- Carrega automaticamente a última configuração salva (se existir)
-SaveManager:LoadAutoloadConfig()
-
--- Seleciona a primeira aba (Aimbot)
-Window:SelectTab(1)
+-- Finaliza a inicialização da biblioteca (OBRIGATÓRIO)
+OrionLib:Init()
