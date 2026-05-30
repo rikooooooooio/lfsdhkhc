@@ -1,5 +1,5 @@
 --[[
-    Universal Tool v4.0 – Fluent UI (Corrigido)
+    Universal Tool v4.1 – Fluent UI (Tamanho reduzido)
     Aimbot | Aimlock | ESP (Box, Nome, Vida) | Misc
 ]]
 
@@ -107,7 +107,6 @@ local function setupESP(player)
     local character = player.Character
     if not character then return end
 
-    -- Highlight para a caixa
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Highlight"
     highlight.FillTransparency = 1
@@ -115,7 +114,6 @@ local function setupESP(player)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
 
-    -- Billboard para nome e vida
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Billboard"
     billboard.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
@@ -125,23 +123,23 @@ local function setupESP(player)
     billboard.MaxDistance = 300
 
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 180, 0, 45)
+    mainFrame.Size = UDim2.new(0, 160, 0, 40)
     mainFrame.BackgroundTransparency = 1
     mainFrame.Parent = billboard
 
     local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.Size = UDim2.new(1, 0, 0, 18)
     nameLabel.BackgroundTransparency = 1
     nameLabel.Text = player.Name
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.TextStrokeTransparency = 0.3
     nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 14
+    nameLabel.TextSize = 13
     nameLabel.Parent = mainFrame
 
     local healthBg = Instance.new("Frame")
-    healthBg.Size = UDim2.new(1, -20, 0, 6)
-    healthBg.Position = UDim2.new(0, 10, 0, 22)
+    healthBg.Size = UDim2.new(1, -20, 0, 5)
+    healthBg.Position = UDim2.new(0, 10, 0, 20)
     healthBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     healthBg.BorderSizePixel = 0
     healthBg.Parent = mainFrame
@@ -258,18 +256,18 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== FLUENT UI ====================
+-- ==================== FLUENT UI (TAMANHO REDUZIDO) ====================
 local Window = Fluent:CreateWindow({
     Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
-    TabWidth = 140,
-    Size = UDim2.fromOffset(450, 400),
+    TabWidth = 120,
+    Size = UDim2.fromOffset(400, 360),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Abas (usando tabela com Title)
+-- Abas
 local AimbotTab = Window:AddTab({ Title = "Aimbot" })
 local AimlockTab = Window:AddTab({ Title = "Aimlock" })
 local ESPTab = Window:AddTab({ Title = "ESP" })
@@ -317,10 +315,10 @@ MiscTab:AddButton({ Title = "Salvar configuração", Callback = function()
     Fluent:Notify({ Title = "Info", Content = "Salvar não implementado nesta versão", Duration = 2 })
 end })
 MiscTab:AddButton({ Title = "Fechar UI", Callback = function() Window:Destroy() end })
-MiscTab:AddParagraph({ Title = "Informações", Content = "Universal Tool v4.0\nFluent UI\nESP simplificado" })
+MiscTab:AddParagraph({ Title = "Informações", Content = "Universal Tool v4.1\nFluent UI\nTamanho reduzido" })
 
 -- Notificação
-Fluent:Notify({ Title = "Universal Tool", Content = "Script carregado!", SubContent = "Use as abas para configurar", Duration = 4 })
+Fluent:Notify({ Title = "Universal Tool", Content = "Script carregado!", SubContent = "Interface reduzida", Duration = 4 })
 
 -- Selecionar primeira aba
 Window:SelectTab(1)
