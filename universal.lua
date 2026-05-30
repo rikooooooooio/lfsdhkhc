@@ -1,12 +1,14 @@
 --[[
-    Universal Tool v3.1 – Corrigido
+    Universal Tool v3.2 – Fluent UI Corrigido
     Aimbot | Aimlock | ESP (Box, Nome, Vida) | Misc
 ]]
 
 -- ==================== CARREGAR FLUENT ====================
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+if not Fluent then
+    game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Erro", Text = "Falha ao carregar Fluent", Duration = 5 })
+    return
+end
 
 -- ==================== SERVIÇOS ====================
 local Players = game:GetService("Players")
@@ -17,25 +19,9 @@ local LocalPlayer = Players.LocalPlayer
 
 -- ==================== CONFIGURAÇÕES ====================
 local settings = {
-    aimbot = {
-        enabled = false,
-        smoothness = 10,
-        fov = 200,
-        targetPart = "Head",
-        keybind = nil,
-    },
-    aimlock = {
-        enabled = false,
-        lockKey = "Q",
-        maxDistance = 100,
-    },
-    esp = {
-        showBox = true,
-        showName = true,
-        showHealth = true,
-        teamColor = true,
-        onlyEnemies = false,
-    }
+    aimbot = { enabled = false, smoothness = 10, fov = 200, targetPart = "Head", keybind = nil },
+    aimlock = { enabled = false, lockKey = "Q", maxDistance = 100 },
+    esp = { showBox = true, showName = true, showHealth = true, teamColor = true, onlyEnemies = false }
 }
 
 -- ==================== VARIÁVEIS ====================
@@ -45,40 +31,36 @@ local espHighlights = {}
 local espNameLabels = {}
 local espHealthBars = {}
 
--- ==================== FUNÇÕES AUXILIARES ====================
+-- ==================== FUNÇÕES ====================
 local function isEnemy(player)
     if player == LocalPlayer then return false end
-    if settings.esp.onlyEnemies then
-        return LocalPlayer.Team ~= player.Team
-    end
+    if settings.esp.onlyEnemies then return LocalPlayer.Team ~= player.Team end
     return true
 end
 
 local function getCharacterPart(character, partName)
-    if not character then return nil end
-    return character:FindFirstChild(partName)
+    return character and character:FindFirstChild(partName)
 end
 
 local function getTargetPart(character)
     return getCharacterPart(character, settings.aimbot.targetPart) or
            getCharacterPart(character, "UpperTorso") or
            getCharacterPart(character, "HumanoidRootPart") or
-           (character:FindFirstChildWhichIsA("BasePart"))
+           (character and character:FindFirstChildWhichIsA("BasePart"))
 end
 
--- ==================== AIMBOT ====================
 local function getClosestPlayerToCrosshair()
     local closestDistance = tonumber(settings.aimbot.fov) or 200
     local closestPlayer = nil
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local targetPart = getTargetPart(player.Character)
-            if targetPart then
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            local part = getTargetPart(player.Character)
+            if part then
+                local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
-                    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
+                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                    if dist < closestDistance then
+                        closestDistance = dist
                         closestPlayer = player
                     end
                 end
@@ -91,19 +73,16 @@ end
 local function smoothCameraLookAt(targetPosition, smoothness)
     if not targetPosition then return end
     local smooth = tonumber(smoothness) or 10
-    local currentCFrame = Camera.CFrame
-    local targetCFrame = CFrame.new(currentCFrame.Position, targetPosition)
-    local newCFrame = currentCFrame:Lerp(targetCFrame, 1 / smooth)
-    Camera.CFrame = newCFrame
+    local current = Camera.CFrame
+    local targetCF = CFrame.new(current.Position, targetPosition)
+    Camera.CFrame = current:Lerp(targetCF, 1 / smooth)
 end
 
--- ==================== AIMLOCK ====================
 local function getNearestPlayerInRange()
     local nearest = nil
     local minDist = tonumber(settings.aimlock.maxDistance) or 100
     local playerPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
     if not playerPos then return nil end
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
             local root = player.Character:FindFirstChild("HumanoidRootPart")
@@ -122,11 +101,9 @@ end
 -- ==================== ESP ====================
 local function setupESP(player)
     if espHighlights[player] then return end
-
     local character = player.Character
     if not character then return end
 
-    -- Box (Highlight)
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Highlight"
     highlight.FillTransparency = 1
@@ -134,7 +111,6 @@ local function setupESP(player)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = character
 
-    -- Billboard para nome e vida
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Billboard"
     billboard.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
@@ -148,9 +124,7 @@ local function setupESP(player)
     mainFrame.BackgroundTransparency = 1
     mainFrame.Parent = billboard
 
-    -- Nome
     local nameLabel = Instance.new("TextLabel")
-    nameLabel.Name = "NameLabel"
     nameLabel.Size = UDim2.new(1, 0, 0, 20)
     nameLabel.BackgroundTransparency = 1
     nameLabel.Text = player.Name
@@ -160,18 +134,14 @@ local function setupESP(player)
     nameLabel.TextSize = 14
     nameLabel.Parent = mainFrame
 
-    -- Fundo da barra de vida
     local healthBg = Instance.new("Frame")
-    healthBg.Name = "HealthBg"
     healthBg.Size = UDim2.new(1, -20, 0, 6)
     healthBg.Position = UDim2.new(0, 10, 0, 22)
     healthBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     healthBg.BorderSizePixel = 0
     healthBg.Parent = mainFrame
 
-    -- Barra de vida
     local healthBar = Instance.new("Frame")
-    healthBar.Name = "HealthBar"
     healthBar.Size = UDim2.new(1, 0, 1, 0)
     healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     healthBar.BorderSizePixel = 0
@@ -179,7 +149,7 @@ local function setupESP(player)
 
     espHighlights[player] = highlight
     espNameLabels[player] = nameLabel
-    espHealthBars[player] = {bg = healthBg, bar = healthBar}
+    espHealthBars[player] = { bg = healthBg, bar = healthBar }
     billboard.Parent = character
 end
 
@@ -188,13 +158,12 @@ local function updateESP()
         local character = player.Character
         if not character or not isEnemy(player) then
             if highlight then highlight:Destroy() end
-            local billboard = character and character:FindFirstChild("ESP_Billboard")
-            if billboard then billboard:Destroy() end
+            local bill = character and character:FindFirstChild("ESP_Billboard")
+            if bill then bill:Destroy() end
             espHighlights[player] = nil
             espNameLabels[player] = nil
             espHealthBars[player] = nil
         else
-            -- Box
             highlight.Enabled = settings.esp.showBox
             if settings.esp.teamColor and LocalPlayer.Team and player.Team then
                 highlight.OutlineColor = (LocalPlayer.Team == player.Team) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
@@ -202,7 +171,6 @@ local function updateESP()
                 highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             end
 
-            -- Nome
             local nameLabel = espNameLabels[player]
             if nameLabel then
                 nameLabel.Visible = settings.esp.showName
@@ -213,84 +181,59 @@ local function updateESP()
                 end
             end
 
-            -- Vida
             local health = espHealthBars[player]
             if health and health.bg and health.bar then
                 health.bg.Visible = settings.esp.showHealth
                 if character and character:FindFirstChild("Humanoid") then
-                    local humanoid = character.Humanoid
-                    local percent = humanoid.Health / humanoid.MaxHealth
+                    local hum = character.Humanoid
+                    local percent = hum.Health / hum.MaxHealth
                     health.bar.Size = UDim2.new(percent, 0, 1, 0)
-                    local r = 255 - 255 * percent
-                    local g = 255 * percent
-                    health.bar.BackgroundColor3 = Color3.fromRGB(r, g, 0)
+                    health.bar.BackgroundColor3 = Color3.fromRGB(255 - 255 * percent, 255 * percent, 0)
                 end
             end
         end
     end
 end
 
--- Inicializar ESP para jogadores existentes e futuros
+-- Inicializar ESP
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
-        player.CharacterAdded:Connect(function()
-            task.wait(0.5)
-            if isEnemy(player) then setupESP(player) end
-        end)
-        if player.Character and isEnemy(player) then
-            setupESP(player)
-        end
+        player.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(player) then setupESP(player) end end)
+        if player.Character and isEnemy(player) then setupESP(player) end
     end
 end
-
 Players.PlayerAdded:Connect(function(player)
     if player == LocalPlayer then return end
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if isEnemy(player) then setupESP(player) end
-    end)
-    if player.Character and isEnemy(player) then
-        setupESP(player)
-    end
+    player.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(player) then setupESP(player) end end)
+    if player.Character and isEnemy(player) then setupESP(player) end
 end)
 
 -- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
     updateESP()
-
-    -- Aimlock
     if settings.aimlock.enabled and UserInputService:IsKeyDown(Enum.KeyCode[settings.aimlock.lockKey]) then
-        if not isAimlocking then
-            aimlockTarget = getNearestPlayerInRange()
-            isAimlocking = true
-        end
+        if not isAimlocking then aimlockTarget = getNearestPlayerInRange(); isAimlocking = true end
         if aimlockTarget and aimlockTarget.Character then
             local part = getTargetPart(aimlockTarget.Character)
-            if part then
-                smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
-            end
+            if part then smoothCameraLookAt(part.Position, settings.aimbot.smoothness) end
         end
     else
         isAimlocking = false
         aimlockTarget = nil
     end
-
-    -- Aimbot livre
     if settings.aimbot.enabled and not isAimlocking then
         local key = settings.aimbot.keybind
         if not key or key == "None" or UserInputService:IsKeyDown(Enum.KeyCode[key]) then
-            local targetPlayer = getClosestPlayerToCrosshair()
-            if targetPlayer and targetPlayer.Character then
-                local part = getTargetPart(targetPlayer.Character)
-                if part then
-                    smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
-                end
+            local target = getClosestPlayerToCrosshair()
+            if target and target.Character then
+                local part = getTargetPart(target.Character)
+                if part then smoothCameraLookAt(part.Position, settings.aimbot.smoothness) end
             end
         end
     end
 end)
 
--- ==================== UI COM FLUENT ====================
+-- ==================== UI FLUENT (SEM ERROS) ====================
 local Window = Fluent:CreateWindow({
     Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
@@ -301,200 +244,58 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Abas
-local AimbotTab = Window:AddTab({ Title = "Aimbot" })
-local AimlockTab = Window:AddTab({ Title = "Aimlock" })
-local ESPTab = Window:AddTab({ Title = "ESP" })
-local MiscTab = Window:AddTab({ Title = "Misc" })
+if not Window then
+    game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Erro", Text = "Falha ao criar janela", Duration = 5 })
+    return
+end
 
--- Configurar SaveManager (pcall para evitar erros)
-pcall(function()
-    SaveManager:SetLibrary(Fluent)
-    InterfaceManager:SetLibrary(Fluent)
-    SaveManager:IgnoreThemeSettings()
-    InterfaceManager:SetFolder("UniversalTool")
-    SaveManager:SetFolder("UniversalTool")
-    SaveManager:BuildConfigSection(AimbotTab)
-    SaveManager:BuildConfigSection(AimlockTab)
-    SaveManager:BuildConfigSection(ESPTab)
-    SaveManager:BuildConfigSection(MiscTab)
-end)
+-- Abas (sem ícones para evitar erro)
+local AimbotTab = Window:AddTab("Aimbot")
+local AimlockTab = Window:AddTab("Aimlock")
+local ESPTab = Window:AddTab("ESP")
+local MiscTab = Window:AddTab("Misc")
 
--- ==================== ABA AIMBOT ====================
+-- ==================== AIMBOT ====================
 AimbotTab:AddSection("Configurações do Aimbot")
+AimbotTab:AddToggle("AimbotEnabled", { Title = "Ativar Aimbot", Default = false, Callback = function(v) settings.aimbot.enabled = v end })
+AimbotTab:AddSlider("AimbotSmoothness", { Title = "Suavidade", Default = 10, Min = 1, Max = 50, Rounding = 1, Callback = function(v) settings.aimbot.smoothness = v end })
+AimbotTab:AddSlider("AimbotFOV", { Title = "Campo de visão (FOV)", Default = 200, Min = 50, Max = 500, Rounding = 1, Callback = function(v) settings.aimbot.fov = v end })
+AimbotTab:AddDropdown("AimbotTargetPart", { Title = "Parte do corpo", Values = {"Head", "UpperTorso", "HumanoidRootPart"}, Default = 1, Multi = false, Callback = function(v) settings.aimbot.targetPart = v end })
+AimbotTab:AddKeybind("AimbotKeybind", { Title = "Tecla de ativação", Mode = "Hold", Default = "None", ChangedCallback = function(new) settings.aimbot.keybind = new == "None" and nil or new end })
 
-AimbotTab:AddToggle("AimbotEnabled", {
-    Title = "Ativar Aimbot",
-    Description = "Ativa o sistema de mira automática",
-    Default = false,
-    Callback = function(v) settings.aimbot.enabled = v end
-})
-
-AimbotTab:AddSlider("AimbotSmoothness", {
-    Title = "Suavidade",
-    Description = "1 = instantâneo | 50 = muito suave",
-    Default = 10, Min = 1, Max = 50, Rounding = 1,
-    Callback = function(v) settings.aimbot.smoothness = v end
-})
-
-AimbotTab:AddSlider("AimbotFOV", {
-    Title = "Campo de visão (FOV)",
-    Description = "Raio de detecção em pixels",
-    Default = 200, Min = 50, Max = 500, Rounding = 1,
-    Callback = function(v) settings.aimbot.fov = v end
-})
-
-AimbotTab:AddDropdown("AimbotTargetPart", {
-    Title = "Parte do corpo",
-    Values = {"Head", "UpperTorso", "HumanoidRootPart"},
-    Default = 1, Multi = false,
-    Callback = function(v) settings.aimbot.targetPart = v end
-})
-
-AimbotTab:AddKeybind("AimbotKeybind", {
-    Title = "Tecla de ativação",
-    Mode = "Hold", Default = "None",
-    ChangedCallback = function(new)
-        if new == "None" then settings.aimbot.keybind = nil else settings.aimbot.keybind = new end
-    end
-})
-
--- ==================== ABA AIMLOCK ====================
+-- ==================== AIMLOCK ====================
 AimlockTab:AddSection("Configurações do Aimlock")
+AimlockTab:AddToggle("AimlockEnabled", { Title = "Ativar Aimlock", Default = false, Callback = function(v) settings.aimlock.enabled = v end })
+AimlockTab:AddSlider("AimlockDistance", { Title = "Distância máxima", Default = 100, Min = 50, Max = 300, Rounding = 1, Callback = function(v) settings.aimlock.maxDistance = v end })
+AimlockTab:AddKeybind("AimlockKeybind", { Title = "Tecla de ativação", Mode = "Hold", Default = "Q", ChangedCallback = function(new) settings.aimlock.lockKey = new end })
 
-AimlockTab:AddToggle("AimlockEnabled", {
-    Title = "Ativar Aimlock",
-    Description = "Trava a mira no inimigo mais próximo",
-    Default = false,
-    Callback = function(v) settings.aimlock.enabled = v end
-})
-
-AimlockTab:AddSlider("AimlockDistance", {
-    Title = "Distância máxima",
-    Description = "Em studs",
-    Default = 100, Min = 50, Max = 300, Rounding = 1,
-    Callback = function(v) settings.aimlock.maxDistance = v end
-})
-
-AimlockTab:AddKeybind("AimlockKeybind", {
-    Title = "Tecla de ativação",
-    Mode = "Hold", Default = "Q",
-    ChangedCallback = function(new) settings.aimlock.lockKey = new end
-})
-
--- ==================== ABA ESP ====================
+-- ==================== ESP ====================
 ESPTab:AddSection("Elementos do ESP")
+ESPTab:AddToggle("ESPBox", { Title = "Caixa (Box)", Default = true, Callback = function(v) settings.esp.showBox = v end })
+ESPTab:AddToggle("ESPName", { Title = "Nome", Default = true, Callback = function(v) settings.esp.showName = v end })
+ESPTab:AddToggle("ESPHealth", { Title = "Vida", Default = true, Callback = function(v) settings.esp.showHealth = v end })
+ESPTab:AddToggle("ESPTeamColor", { Title = "Cor por time", Default = true, Callback = function(v) settings.esp.teamColor = v end })
+ESPTab:AddToggle("ESPOnlyEnemies", { Title = "Apenas inimigos", Default = false, Callback = function(v)
+    settings.esp.onlyEnemies = v
+    for _, h in pairs(espHighlights) do if h then h:Destroy() end end
+    for _, name in pairs(espNameLabels) do if name and name.Parent and name.Parent.Parent then name.Parent.Parent:Destroy() end end
+    espHighlights = {}; espNameLabels = {}; espHealthBars = {}
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and isEnemy(p) then setupESP(p) end end
+end })
 
-ESPTab:AddToggle("ESPBox", {
-    Title = "Caixa (Box)",
-    Description = "Contorno colorido ao redor do personagem",
-    Default = true,
-    Callback = function(v) settings.esp.showBox = v end
-})
-
-ESPTab:AddToggle("ESPName", {
-    Title = "Nome",
-    Description = "Exibe o nome acima da cabeça",
-    Default = true,
-    Callback = function(v) settings.esp.showName = v end
-})
-
-ESPTab:AddToggle("ESPHealth", {
-    Title = "Vida",
-    Description = "Exibe a barra de vida",
-    Default = true,
-    Callback = function(v) settings.esp.showHealth = v end
-})
-
-ESPTab:AddToggle("ESPTeamColor", {
-    Title = "Cor por time",
-    Description = "Aliados azul, inimigos vermelho",
-    Default = true,
-    Callback = function(v) settings.esp.teamColor = v end
-})
-
-ESPTab:AddToggle("ESPOnlyEnemies", {
-    Title = "Apenas inimigos",
-    Description = "Mostra ESP só para oponentes",
-    Default = false,
-    Callback = function(v)
-        settings.esp.onlyEnemies = v
-        for _, h in pairs(espHighlights) do if h then h:Destroy() end end
-        for _, name in pairs(espNameLabels) do
-            if name and name.Parent and name.Parent.Parent then name.Parent.Parent:Destroy() end
-        end
-        espHighlights = {}
-        espNameLabels = {}
-        espHealthBars = {}
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and isEnemy(p) then setupESP(p) end
-        end
-    end
-})
-
--- ==================== ABA MISC ====================
+-- ==================== MISC ====================
 MiscTab:AddSection("Interface")
-
-MiscTab:AddButton({
-    Title = "Alternar tema (Dark/Light)",
-    Callback = function()
-        if Fluent.Theme == "Dark" then Fluent:SetTheme("Light") else Fluent:SetTheme("Dark") end
-    end
-})
-
-MiscTab:AddSlider({
-    Title = "Transparência da janela",
-    Default = 1, Min = 0.5, Max = 1, Rounding = 2,
-    Callback = function(v)
-        local frame = Window.Frame
-        if frame then frame.BackgroundTransparency = 1 - v end
-    end
-})
+MiscTab:AddButton({ Title = "Alternar tema (Dark/Light)", Callback = function() if Fluent.Theme == "Dark" then Fluent:SetTheme("Light") else Fluent:SetTheme("Dark") end end })
+MiscTab:AddSlider({ Title = "Transparência da janela", Default = 1, Min = 0.5, Max = 1, Rounding = 2, Callback = function(v) if Window.Frame then Window.Frame.BackgroundTransparency = 1 - v end end })
 
 MiscTab:AddSection("Configurações do Script")
+MiscTab:AddButton({ Title = "Salvar configuração", Callback = function() pcall(function() SaveManager:Save() end); Fluent:Notify({ Title = "Sucesso", Content = "Configurações salvas!", Duration = 2 }) end })
+MiscTab:AddButton({ Title = "Carregar configuração", Callback = function() pcall(function() SaveManager:Load() end); Fluent:Notify({ Title = "Sucesso", Content = "Configurações carregadas!", Duration = 2 }) end })
+MiscTab:AddButton({ Title = "Resetar configurações", Callback = function() pcall(function() SaveManager:Reset() end); Fluent:Notify({ Title = "Aviso", Content = "Configurações resetadas!", Duration = 2 }) end })
+MiscTab:AddButton({ Title = "Fechar UI", Callback = function() Window:Destroy() end })
+MiscTab:AddParagraph({ Title = "Informações", Content = "Universal Tool v3.2\nFluent UI\nESP simplificado" })
 
-MiscTab:AddButton({
-    Title = "Salvar configuração",
-    Callback = function()
-        pcall(function() SaveManager:Save() end)
-        Fluent:Notify({ Title = "Sucesso", Content = "Configurações salvas!", Duration = 2 })
-    end
-})
-
-MiscTab:AddButton({
-    Title = "Carregar configuração",
-    Callback = function()
-        pcall(function() SaveManager:Load() end)
-        Fluent:Notify({ Title = "Sucesso", Content = "Configurações carregadas!", Duration = 2 })
-    end
-})
-
-MiscTab:AddButton({
-    Title = "Resetar configurações",
-    Callback = function()
-        pcall(function() SaveManager:Reset() end)
-        Fluent:Notify({ Title = "Aviso", Content = "Configurações resetadas!", Duration = 2 })
-    end
-})
-
-MiscTab:AddButton({
-    Title = "Fechar UI",
-    Callback = function() Window:Destroy() end
-})
-
-MiscTab:AddParagraph({
-    Title = "Informações",
-    Content = "Universal Tool v3.1\nDesenvolvido com Fluent UI\nESP simplificado"
-})
-
--- Notificação inicial
-Fluent:Notify({
-    Title = "Universal Tool",
-    Content = "Script carregado!",
-    SubContent = "Use as abas para configurar",
-    Duration = 4
-})
-
--- Carregar configurações salvas
+-- Notificação e carregamento
+Fluent:Notify({ Title = "Universal Tool", Content = "Script carregado!", SubContent = "Use as abas para configurar", Duration = 4 })
 pcall(function() SaveManager:LoadAutoloadConfig() end)
 Window:SelectTab(1)
