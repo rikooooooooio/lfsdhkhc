@@ -531,6 +531,101 @@ local onlyEnemiesToggle = Tabs.ESP:AddToggle("ESPOnlyEnemies", {
     end
 })
 
+-- ==================== ABA MISC ====================
+local MiscTab = Window:AddTab({ Title = "Misc", Icon = "settings" })
+
+MiscTab:AddSection("Configurações da Interface")
+
+-- Botão para alternar tema (Dark/Light)
+MiscTab:AddButton({
+    Title = "Alternar Tema",
+    Description = "Muda entre tema escuro e claro",
+    Callback = function()
+        local current = Fluent.Theme
+        if current == "Dark" then
+            Fluent:SetTheme("Light")
+        else
+            Fluent:SetTheme("Dark")
+        end
+    end
+})
+
+-- Slider de opacidade da janela (se disponível, mas Fluent não tem nativamente; vamos usar um exemplo)
+MiscTab:AddSlider({
+    Title = "Transparência da janela",
+    Description = "Ajusta a transparência (apenas visual, não salva)",
+    Default = 1,
+    Min = 0.5,
+    Max = 1,
+    Rounding = 2,
+    Callback = function(value)
+        -- Aplica transparência na janela do Fluent (requer acesso ao Frame principal)
+        local windowFrame = Window.Frame
+        if windowFrame then
+            windowFrame.BackgroundTransparency = 1 - value
+        end
+    end
+})
+
+MiscTab:AddSection("Configurações do Script")
+
+-- Botão para salvar configuração
+MiscTab:AddButton({
+    Title = "Salvar Configuração",
+    Description = "Salva todas as opções atuais",
+    Callback = function()
+        SaveManager:Save()
+        Fluent:Notify({
+            Title = "Configuração",
+            Content = "Configuração salva com sucesso!",
+            Duration = 2
+        })
+    end
+})
+
+-- Botão para carregar configuração
+MiscTab:AddButton({
+    Title = "Carregar Configuração",
+    Description = "Carrega a última configuração salva",
+    Callback = function()
+        SaveManager:Load()
+        Fluent:Notify({
+            Title = "Configuração",
+            Content = "Configuração carregada!",
+            Duration = 2
+        })
+    end
+})
+
+-- Botão para resetar configurações
+MiscTab:AddButton({
+    Title = "Resetar Configurações",
+    Description = "Volta às configurações padrão",
+    Callback = function()
+        SaveManager:Reset()
+        Fluent:Notify({
+            Title = "Configuração",
+            Content = "Configurações resetadas!",
+            Duration = 2
+        })
+    end
+})
+
+-- Botão para fechar a UI
+MiscTab:AddButton({
+    Title = "Fechar UI",
+    Description = "Fecha a janela do script",
+    Callback = function()
+        Window:Destroy()
+    end
+})
+
+-- Informação de versão
+MiscTab:AddParagraph({
+    Title = "Informações",
+    Content = "Universal Tool v3.0\nDesenvolvido com Fluent UI\nESP simplificado"
+})
+
 -- ==================== NOTIFICAÇÃO ====================
 Fluent:Notify({
     Title = "Universal Tool",
