@@ -1,12 +1,12 @@
 --[[
-    Universal Tool – WindUI (Estável)
+    Universal Tool – Fluent Renewed
     Aimbot configurável | ESP (Box + Nome)
-    Sem notificações automáticas
 ]]
 
--- Carregar WindUI
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-if not WindUI then return end
+-- Carregar Fluent Renewed e os gerenciadores
+local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau", true))()
+local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
 
 -- Serviços
 local Players = game:GetService("Players")
@@ -15,283 +15,356 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Configurações
-local settings = {
-    aimbot = {enabled = false, smoothness = 10, fov = 200, targetPart = "Head", keybind = nil},
-    esp = {showBox = true, showName = true, teamColor = true, onlyEnemies = false}
+-- Configurações padrão
+local Settings = {
+    Aimbot = {
+        Enabled = false,
+        Smoothness = 10,      -- 1 = instantâneo, 50 = mais suave
+        FOV = 200,            -- Raio de detecção em pixels
+        TargetPart = "Head",  -- Cabeça, tronco ou centro
+        Keybind = nil         -- Tecla opcional para ativação
+    },
+    ESP = {
+        ShowBox = true,       -- Caixa de contorno (Highlight)
+        ShowName = true,      -- Nome do jogador
+        TeamColor = true,     -- Azul = aliado, vermelho = inimigo
+        OnlyEnemies = false   -- Mostrar apenas oponentes
+    }
 }
 
--- Variáveis ESP
-local espHighlights = {}
-local espNameLabels = {}
+-- Variáveis locais
+local AimbotTarget = nil
+local espHighlights = {}      -- Caixas (Highlight)
+local espNames = {}           -- Nomes (BillboardGui)
 
--- Função para verificar inimigo
-local function isEnemy(p)
-    if not p or p == LocalPlayer then return false end
-    if settings.esp.onlyEnemies then
-        return LocalPlayer.Team ~= p.Team
+-- Verifica se o jogador é inimigo (considera OnlyEnemies e Teams)
+local function isEnemy(Player)
+    if Player == LocalPlayer then return false end
+    if Settings.ESP.OnlyEnemies then
+        return LocalPlayer.Team ~= Player.Team
     end
     return true
 end
 
--- Obter parte do corpo alvo (com verificação de nil)
-local function getTargetPart(char)
-    if not char then return nil end
-    local part = char:FindFirstChild(settings.aimbot.targetPart)
-    if part then return part end
-    part = char:FindFirstChild("UpperTorso")
-    if part then return part end
-    part = char:FindFirstChild("HumanoidRootPart")
-    return part
+-- Obtém a parte do corpo configurada ou uma alternativa
+local function getTargetPart(Character)
+    if not Character then return nil end
+    local Part = Character:FindFirstChild(Settings.Aimbot.TargetPart)
+    if Part then return Part end
+    Part = Character:FindFirstChild("UpperTorso")
+    if Part then return Part end
+    return Character:FindFirstChild("HumanoidRootPart")
 end
 
--- Aimbot: jogador mais próximo da mira
+-- Encontra o inimigo mais próximo do centro da mira
 local function getClosestPlayerToCrosshair()
-    local closestDist = settings.aimbot.fov
-    local closest = nil
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            local humanoid = plr.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local part = getTargetPart(plr.Character)
-                if part then
-                    local screenPoint, onScreen = Camera:WorldToViewportPoint(part.Position)
-                    if onScreen then
-                        local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                        if dist < closestDist then
-                            closestDist = dist
-                            closest = plr
+    local ClosestDistance = Settings.Aimbot.FOV
+    local ClosestPlayer = nil
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character then
+            local Humanoid = Player.Character:FindFirstChild("Humanoid")
+            if Humanoid and Humanoid.Health > 0 then
+                local TargetPart = getTargetPart(Player.Character)
+                if TargetPart then
+                    local ScreenPos, OnScreen = Camera:WorldToViewportPoint(TargetPart.Position)
+                    if OnScreen then
+                        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+                        if Distance < ClosestDistance then
+                            ClosestDistance = Distance
+                            ClosestPlayer = Player
                         end
                     end
                 end
             end
         end
     end
-    return closest
+    return ClosestPlayer
 end
 
--- Movimento suave da câmera
-local function smoothCameraLookAt(pos, smooth)
-    if not pos then return end
-    local s = smooth or 10
-    local current = Camera.CFrame
-    local target = CFrame.new(current.Position, pos)
-    Camera.CFrame = current:Lerp(target, 1/s)
+-- Suavidade para mover a câmera
+local function smoothCamera(Part, Smoothness)
+    if not Part then return end
+    local Smooth = Smoothness or 10
+    local CurrentCFrame = Camera.CFrame
+    local TargetCFrame = CFrame.new(CurrentCFrame.Position, Part.Position)
+    Camera.CFrame = CurrentCFrame:Lerp(TargetCFrame, 1 / Smooth)
 end
 
--- Criar ESP para um jogador
-local function setupESP(player)
-    if espHighlights[player] then return end
-    local char = player.Character
-    if not char then return end
+--- ESP: Cria os elementos visuais para um jogador
+local function setupESP(Player)
+    if espHighlights[Player] then return end
+    local Character = Player.Character
+    if not Character then return end
 
-    -- Caixa (Highlight)
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.FillTransparency = 1
-    highlight.OutlineTransparency = 0.25
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = char
+    -- Caixa de contorno (Highlight)
+    local Highlight = Instance.new("Highlight")
+    Highlight.Name = "ESP_Highlight"
+    Highlight.FillTransparency = 1
+    Highlight.OutlineTransparency = 0.25
+    Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    Highlight.Parent = Character
 
-    -- Billboard para o nome
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_Billboard"
-    local adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-    if not adornee then return end
-    billboard.Adornee = adornee
-    billboard.Size = UDim2.new(0, 4, 0, 4)
-    billboard.StudsOffset = Vector3.new(0, 2.2, 0)
-    billboard.AlwaysOnTop = true
-    billboard.MaxDistance = 300
+    -- Nome (BillboardGui)
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "ESP_Billboard"
+    local Adornee = Character:FindFirstChild("HumanoidRootPart") or Character:FindFirstChild("Head")
+    if not Adornee then return end
+    Billboard.Adornee = Adornee
+    Billboard.Size = UDim2.new(0, 4, 0, 4)
+    Billboard.StudsOffset = Vector3.new(0, 2.2, 0)
+    Billboard.AlwaysOnTop = true
+    Billboard.MaxDistance = 300
 
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(0, 160, 0, 18)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = player.Name
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 14
-    nameLabel.TextStrokeTransparency = 0.25
-    nameLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    nameLabel.Parent = billboard
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Size = UDim2.new(0, 160, 0, 18)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Text = Player.Name
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextSize = 14
+    NameLabel.TextStrokeTransparency = 0.25
+    NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    NameLabel.Parent = Billboard
 
-    espHighlights[player] = highlight
-    espNameLabels[player] = nameLabel
-    billboard.Parent = char
+    espHighlights[Player] = Highlight
+    espNames[Player] = NameLabel
+    Billboard.Parent = Character
 end
 
--- Atualizar ESP a cada frame
+-- Atualiza a aparência de todas as caixas e nomes
 local function updateESP()
-    for player, highlight in pairs(espHighlights) do
-        local char = player.Character
-        if not char or not isEnemy(player) then
-            if highlight then highlight:Destroy() end
-            local bill = char and char:FindFirstChild("ESP_Billboard")
-            if bill then bill:Destroy() end
-            espHighlights[player] = nil
-            espNameLabels[player] = nil
+    for Player, Highlight in pairs(espHighlights) do
+        local Character = Player.Character
+        if not Character or not isEnemy(Player) then
+            if Highlight then Highlight:Destroy() end
+            local Billboard = Character and Character:FindFirstChild("ESP_Billboard")
+            if Billboard then Billboard:Destroy() end
+            espHighlights[Player] = nil
+            espNames[Player] = nil
         else
             -- Caixa
-            highlight.Enabled = settings.esp.showBox
-            if settings.esp.teamColor and LocalPlayer.Team and player.Team then
-                highlight.OutlineColor = (LocalPlayer.Team == player.Team) and Color3.fromRGB(0,0,255) or Color3.fromRGB(255,0,0)
+            Highlight.Enabled = Settings.ESP.ShowBox
+            if Settings.ESP.TeamColor and LocalPlayer.Team and Player.Team then
+                Highlight.OutlineColor = (LocalPlayer.Team == Player.Team) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
             else
-                highlight.OutlineColor = Color3.fromRGB(255,255,255)
+                Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             end
 
             -- Nome
-            local nameLabel = espNameLabels[player]
-            if nameLabel then
-                nameLabel.Visible = settings.esp.showName
-                if settings.esp.teamColor and LocalPlayer.Team and player.Team then
-                    nameLabel.TextColor3 = (LocalPlayer.Team == player.Team) and Color3.fromRGB(100,100,255) or Color3.fromRGB(255,100,100)
+            local NameLabel = espNames[Player]
+            if NameLabel then
+                NameLabel.Visible = Settings.ESP.ShowName
+                if Settings.ESP.TeamColor and LocalPlayer.Team and Player.Team then
+                    NameLabel.TextColor3 = (LocalPlayer.Team == Player.Team) and Color3.fromRGB(100, 100, 255) or Color3.fromRGB(255, 100, 100)
                 else
-                    nameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+                    NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                 end
             end
         end
     end
 end
 
--- Inicializar ESP para jogadores existentes e futuros
-local function initPlayer(plr)
-    if plr == LocalPlayer then return end
-    local function onChar()
+-- Inicializa o ESP para jogadores existentes
+local function initPlayerESP(Player)
+    if Player == LocalPlayer then return end
+    local function onCharacterAdded()
         task.wait(0.5)
-        if isEnemy(plr) then setupESP(plr) end
+        if isEnemy(Player) then setupESP(Player) end
     end
-    plr.CharacterAdded:Connect(onChar)
-    if plr.Character and isEnemy(plr) then setupESP(plr) end
+    Player.CharacterAdded:Connect(onCharacterAdded)
+    if Player.Character and isEnemy(Player) then
+        setupESP(Player)
+    end
 end
 
-for _, plr in ipairs(Players:GetPlayers()) do initPlayer(plr) end
-Players.PlayerAdded:Connect(initPlayer)
+for _, Player in ipairs(Players:GetPlayers()) do
+    initPlayerESP(Player)
+end
+Players.PlayerAdded:Connect(initPlayerESP)
 
--- Loop principal (Aimbot)
+-- Loop principal (Aimbot e ESP)
 RunService.RenderStepped:Connect(function()
-    updateESP()
-    if settings.aimbot.enabled then
-        local key = settings.aimbot.keybind
-        if not key or key == "None" or UserInputService:IsKeyDown(Enum.KeyCode[key]) then
-            local target = getClosestPlayerToCrosshair()
-            if target and target.Character then
-                local part = getTargetPart(target.Character)
-                if part then
-                    smoothCameraLookAt(part.Position, settings.aimbot.smoothness)
+    updateESP() -- Atualiza caixas e nomes
+
+    if Settings.Aimbot.Enabled then
+        local Key = Settings.Aimbot.Keybind
+        if not Key or Key == "None" or UserInputService:IsKeyDown(Enum.KeyCode[Key]) then
+            local TargetPlayer = getClosestPlayerToCrosshair()
+            if TargetPlayer and TargetPlayer.Character then
+                local TargetPart = getTargetPart(TargetPlayer.Character)
+                if TargetPart then
+                    smoothCamera(TargetPart, Settings.Aimbot.Smoothness)
                 end
             end
         end
     end
 end)
 
--- ==================== INTERFACE WINDUI ====================
-local Window = WindUI:CreateWindow({
+--- Interface Fluent Renewed
+local Window = Library:CreateWindow{
     Title = "Universal Tool",
-    Author = "System",
-    Folder = "UniversalTool",
-    Icon = "target",
+    SubTitle = "Aimbot Configurável | ESP",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(450, 400),
+    Resize = true,
+    MinSize = Vector2.new(400, 350),
+    Acrylic = true,
     Theme = "Dark",
-    Size = UDim2.fromOffset(420, 380),
-    Resizable = true,
-    ToggleKey = Enum.KeyCode.RightControl,
-    SideBarWidth = 150
-})
+    MinimizeKey = Enum.KeyCode.RightControl
+}
 
-if not Window then return end
+local Tabs = {
+    Aimbot = Window:CreateTab{ Title = "Aimbot", Icon = "target" },
+    ESP = Window:CreateTab{ Title = "ESP", Icon = "eye" }
+}
 
--- Abas
-local AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "crosshair" })
-local ESPTab = Window:Tab({ Title = "ESP", Icon = "eye" })
+-- Registra os gerenciadores (salvar configurações e interface)
+SaveManager:SetLibrary(Library)
+InterfaceManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+InterfaceManager:SetFolder("UniversalTool")
+SaveManager:SetFolder("UniversalTool/Configs")
 
--- ==================== ABA AIMBOT ====================
-AimbotTab:Section({ Title = "Configurações do Aimbot" })
+InterfaceManager:BuildInterfaceSection(Tabs.ESP) -- Aba de gerenciamento de interface
+SaveManager:BuildConfigSection(Tabs.ESP)        -- Aba para salvar configurações
 
-AimbotTab:Toggle({
+--- Conteúdo da aba Aimbot
+Tabs.Aimbot:CreateSection("Configurações do Aimbot")
+
+-- Ativar/Desativar
+local ToggleAimbot = Tabs.Aimbot:CreateToggle("AimbotToggle", {
     Title = "Ativar Aimbot",
-    Icon = "target",
-    Default = false,
-    Callback = function(v) settings.aimbot.enabled = v end
-})
-
-AimbotTab:Slider({
-    Title = "Suavidade",
-    Icon = "gauge",
-    Min = 1,
-    Max = 50,
-    Step = 1,
-    Default = 10,
-    Callback = function(v) settings.aimbot.smoothness = v end
-})
-
-AimbotTab:Slider({
-    Title = "Campo de visão (FOV)",
-    Icon = "radius",
-    Min = 50,
-    Max = 400,
-    Step = 10,
-    Default = 200,
-    Callback = function(v) settings.aimbot.fov = v end
-})
-
-AimbotTab:Dropdown({
-    Title = "Parte do corpo",
-    Icon = "person-standing",
-    Values = { "Head", "UpperTorso", "HumanoidRootPart" },
-    Default = "Head",
-    Callback = function(v) settings.aimbot.targetPart = v end
-})
-
-AimbotTab:Keybind({
-    Title = "Tecla de ativação",
-    Icon = "key",
-    Default = "None",
-    Callback = function(key)
-        settings.aimbot.keybind = (key == "None" and nil or key)
+    Default = Settings.Aimbot.Enabled,
+    Callback = function(Value)
+        Settings.Aimbot.Enabled = Value
     end
 })
 
--- ==================== ABA ESP ====================
-ESPTab:Section({ Title = "Elementos do ESP" })
-
-ESPTab:Toggle({
-    Title = "Caixa (Box)",
-    Icon = "bounding-box",
-    Default = true,
-    Callback = function(v) settings.esp.showBox = v end
+-- Suavidade (Slider)
+local SliderSmoothness = Tabs.Aimbot:CreateSlider("SmoothnessSlider", {
+    Title = "Suavidade",
+    Description = "1 = instantâneo | 50 = mais suave",
+    Default = Settings.Aimbot.Smoothness,
+    Min = 1,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(Value)
+        Settings.Aimbot.Smoothness = Value
+    end
 })
 
-ESPTab:Toggle({
-    Title = "Nome",
-    Icon = "text",
-    Default = true,
-    Callback = function(v) settings.esp.showName = v end
+-- Campo de visão (FOV)
+local SliderFOV = Tabs.Aimbot:CreateSlider("FOVSlider", {
+    Title = "Campo de visão (FOV)",
+    Description = "Raio de detecção em pixels",
+    Default = Settings.Aimbot.FOV,
+    Min = 50,
+    Max = 400,
+    Rounding = 1,
+    Callback = function(Value)
+        Settings.Aimbot.FOV = Value
+    end
 })
 
-ESPTab:Toggle({
-    Title = "Cor por time",
-    Icon = "palette",
-    Default = true,
-    Callback = function(v) settings.esp.teamColor = v end
+-- Parte do corpo (Dropdown)
+local DropdownTargetPart = Tabs.Aimbot:CreateDropdown("TargetPartDropdown", {
+    Title = "Parte do corpo",
+    Values = { "Head", "UpperTorso", "HumanoidRootPart" },
+    Multi = false,
+    Default = Settings.Aimbot.TargetPart,
+    Callback = function(Value)
+        Settings.Aimbot.TargetPart = Value
+    end
 })
 
-ESPTab:Toggle({
-    Title = "Apenas inimigos",
-    Icon = "swords",
-    Default = false,
-    Callback = function(v)
-        settings.esp.onlyEnemies = v
-        -- Recriar ESP
-        for _, h in pairs(espHighlights) do if h then h:Destroy() end end
-        for _, n in pairs(espNameLabels) do if n and n.Parent then n.Parent:Destroy() end end
-        espHighlights = {}
-        espNameLabels = {}
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and isEnemy(p) then setupESP(p) end
+-- Tecla de ativação (opcional)
+local KeybindAimbot = Tabs.Aimbot:CreateKeybind("AimbotKeybind", {
+    Title = "Tecla de ativação (opcional)",
+    Mode = "Hold",
+    Default = "None",
+    Callback = function(Value) end,  -- Opcional: executar algo ao pressionar
+    ChangedCallback = function(NewKey)
+        if NewKey == "None" then
+            Settings.Aimbot.Keybind = nil
+        else
+            Settings.Aimbot.Keybind = NewKey
         end
     end
 })
 
-ESPTab:Button({
-    Title = "Fechar UI",
-    Icon = "door-closed",
-    Callback = function() Window:Destroy() end
+--- Conteúdo da aba ESP
+Tabs.ESP:CreateSection("Elementos do ESP")
+
+-- Caixa (Box)
+local ToggleBox = Tabs.ESP:CreateToggle("ESPBoxToggle", {
+    Title = "Caixa (Box)",
+    Default = Settings.ESP.ShowBox,
+    Callback = function(Value)
+        Settings.ESP.ShowBox = Value
+    end
 })
+
+-- Nome
+local ToggleName = Tabs.ESP:CreateToggle("ESPNameToggle", {
+    Title = "Nome",
+    Default = Settings.ESP.ShowName,
+    Callback = function(Value)
+        Settings.ESP.ShowName = Value
+    end
+})
+
+-- Cores por time
+local ToggleTeamColor = Tabs.ESP:CreateToggle("ESPTeamColorToggle", {
+    Title = "Cor por time",
+    Description = "Aliados em azul / Inimigos em vermelho",
+    Default = Settings.ESP.TeamColor,
+    Callback = function(Value)
+        Settings.ESP.TeamColor = Value
+    end
+})
+
+-- Apenas inimigos
+local ToggleOnlyEnemies = Tabs.ESP:CreateToggle("ESPOnlyEnemiesToggle", {
+    Title = "Apenas inimigos",
+    Description = "Mostrar ESP apenas para jogadores de times diferentes",
+    Default = Settings.ESP.OnlyEnemies,
+    Callback = function(Value)
+        Settings.ESP.OnlyEnemies = Value
+        -- Recria os elementos do ESP para aplicar o novo filtro
+        for _, Highlight in pairs(espHighlights) do
+            if Highlight then Highlight:Destroy() end
+        end
+        for _, NameLabel in pairs(espNames) do
+            if NameLabel and NameLabel.Parent then NameLabel.Parent:Destroy() end
+        end
+        espHighlights = {}
+        espNames = {}
+        for _, Player in ipairs(Players:GetPlayers()) do
+            if Player ~= LocalPlayer and isEnemy(Player) then
+                setupESP(Player)
+            end
+        end
+    end
+})
+
+-- Botão para fechar a interface
+Tabs.ESP:CreateButton({
+    Title = "Fechar UI",
+    Callback = function()
+        Window:Destroy()
+    end
+})
+
+--- Notificação de inicialização (opcional)
+Library:Notify({
+    Title = "Universal Tool",
+    Content = "Script carregado com sucesso!",
+    SubContent = "Aimbot e ESP prontos para uso.",
+    Duration = 4
+})
+
+-- Carrega automaticamente a última configuração salva (se existir)
+SaveManager:LoadAutoloadConfig()
+
+-- Seleciona a primeira aba (Aimbot)
+Window:SelectTab(1)
