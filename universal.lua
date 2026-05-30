@@ -291,7 +291,17 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== UI COM FLUENT ====================
+-- ==================== UI COM FLUENT (CORRIGIDO) ====================
+-- Verificar se Fluent foi carregado
+if not Fluent or not Fluent.CreateWindow then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Erro",
+        Text = "Falha ao carregar Fluent UI. Verifique sua conexão.",
+        Duration = 5
+    })
+    return
+end
+
 local Window = Fluent:CreateWindow({
     Title = "Universal Tool",
     SubTitle = "Aimbot | Aimlock | ESP",
@@ -302,57 +312,59 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Abas
-local Tabs = {
-    Aimbot = Window:AddTab({ Title = "Aimbot", Icon = "target" }),
-    Aimlock = Window:AddTab({ Title = "Aimlock", Icon = "lock" }),
-    ESP = Window:AddTab({ Title = "ESP", Icon = "eye" }),
-    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" })
-}
+-- Criar abas ANTES de qualquer operação
+local AimbotTab = Window:AddTab({ Title = "Aimbot", Icon = "target" })
+local AimlockTab = Window:AddTab({ Title = "Aimlock", Icon = "lock" })
+local ESPTab = Window:AddTab({ Title = "ESP", Icon = "eye" })
+local MiscTab = Window:AddTab({ Title = "Misc", Icon = "settings" })
 
--- Configurar SaveManager
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-InterfaceManager:SetFolder("UniversalTool")
-SaveManager:SetFolder("UniversalTool")
-SaveManager:BuildConfigSection(Tabs.Aimbot)
-SaveManager:BuildConfigSection(Tabs.Aimlock)
-SaveManager:BuildConfigSection(Tabs.ESP)
-SaveManager:BuildConfigSection(Tabs.Misc)
+-- Configurar SaveManager (apenas se disponível)
+if SaveManager and InterfaceManager then
+    pcall(function()
+        SaveManager:SetLibrary(Fluent)
+        InterfaceManager:SetLibrary(Fluent)
+        SaveManager:IgnoreThemeSettings()
+        InterfaceManager:SetFolder("UniversalTool")
+        SaveManager:SetFolder("UniversalTool")
+        SaveManager:BuildConfigSection(AimbotTab)
+        SaveManager:BuildConfigSection(AimlockTab)
+        SaveManager:BuildConfigSection(ESPTab)
+        SaveManager:BuildConfigSection(MiscTab)
+    end)
+end
 
 -- ==================== ABA AIMBOT ====================
-Tabs.Aimbot:AddSection("Configurações do Aimbot")
+AimbotTab:AddSection("Configurações do Aimbot")
 
-Tabs.Aimbot:AddToggle("AimbotEnabled", {
+AimbotTab:AddToggle("AimbotEnabled", {
     Title = "Ativar Aimbot",
     Description = "Ativa o sistema de mira automática",
     Default = false,
     Callback = function(v) settings.aimbot.enabled = v end
 })
 
-Tabs.Aimbot:AddSlider("AimbotSmoothness", {
+AimbotTab:AddSlider("AimbotSmoothness", {
     Title = "Suavidade",
     Description = "1 = instantâneo | 50 = muito suave",
     Default = 10, Min = 1, Max = 50, Rounding = 1,
     Callback = function(v) settings.aimbot.smoothness = v end
 })
 
-Tabs.Aimbot:AddSlider("AimbotFOV", {
+AimbotTab:AddSlider("AimbotFOV", {
     Title = "Campo de visão (FOV)",
     Description = "Raio de detecção em pixels",
     Default = 200, Min = 50, Max = 500, Rounding = 1,
     Callback = function(v) settings.aimbot.fov = v end
 })
 
-Tabs.Aimbot:AddDropdown("AimbotTargetPart", {
+AimbotTab:AddDropdown("AimbotTargetPart", {
     Title = "Parte do corpo",
     Values = {"Head", "UpperTorso", "HumanoidRootPart"},
     Default = 1, Multi = false,
     Callback = function(v) settings.aimbot.targetPart = v end
 })
 
-Tabs.Aimbot:AddKeybind("AimbotKeybind", {
+AimbotTab:AddKeybind("AimbotKeybind", {
     Title = "Tecla de ativação",
     Mode = "Hold", Default = "None",
     ChangedCallback = function(new)
@@ -361,66 +373,66 @@ Tabs.Aimbot:AddKeybind("AimbotKeybind", {
 })
 
 -- ==================== ABA AIMLOCK ====================
-Tabs.Aimlock:AddSection("Configurações do Aimlock")
+AimlockTab:AddSection("Configurações do Aimlock")
 
-Tabs.Aimlock:AddToggle("AimlockEnabled", {
+AimlockTab:AddToggle("AimlockEnabled", {
     Title = "Ativar Aimlock",
     Description = "Trava a mira no inimigo mais próximo",
     Default = false,
     Callback = function(v) settings.aimlock.enabled = v end
 })
 
-Tabs.Aimlock:AddSlider("AimlockDistance", {
+AimlockTab:AddSlider("AimlockDistance", {
     Title = "Distância máxima",
     Description = "Em studs",
     Default = 100, Min = 50, Max = 300, Rounding = 1,
     Callback = function(v) settings.aimlock.maxDistance = v end
 })
 
-Tabs.Aimlock:AddKeybind("AimlockKeybind", {
+AimlockTab:AddKeybind("AimlockKeybind", {
     Title = "Tecla de ativação",
     Mode = "Hold", Default = "Q",
     ChangedCallback = function(new) settings.aimlock.lockKey = new end
 })
 
 -- ==================== ABA ESP ====================
-Tabs.ESP:AddSection("Elementos do ESP")
+ESPTab:AddSection("Elementos do ESP")
 
-Tabs.ESP:AddToggle("ESPBox", {
+ESPTab:AddToggle("ESPBox", {
     Title = "Caixa (Box)",
     Description = "Contorno colorido ao redor do personagem",
     Default = true,
     Callback = function(v) settings.esp.showBox = v end
 })
 
-Tabs.ESP:AddToggle("ESPName", {
+ESPTab:AddToggle("ESPName", {
     Title = "Nome",
     Description = "Exibe o nome acima da cabeça",
     Default = true,
     Callback = function(v) settings.esp.showName = v end
 })
 
-Tabs.ESP:AddToggle("ESPHealth", {
+ESPTab:AddToggle("ESPHealth", {
     Title = "Vida",
     Description = "Exibe a barra de vida",
     Default = true,
     Callback = function(v) settings.esp.showHealth = v end
 })
 
-Tabs.ESP:AddToggle("ESPTeamColor", {
+ESPTab:AddToggle("ESPTeamColor", {
     Title = "Cor por time",
     Description = "Aliados azul, inimigos vermelho",
     Default = true,
     Callback = function(v) settings.esp.teamColor = v end
 })
 
-Tabs.ESP:AddToggle("ESPOnlyEnemies", {
+ESPTab:AddToggle("ESPOnlyEnemies", {
     Title = "Apenas inimigos",
     Description = "Mostra ESP só para oponentes",
     Default = false,
     Callback = function(v)
         settings.esp.onlyEnemies = v
-        -- Recriar ESP para todos os jogadores
+        -- Recriar ESP
         for _, h in pairs(espHighlights) do if h then h:Destroy() end end
         for _, name in pairs(espNameLabels) do
             if name and name.Parent and name.Parent.Parent then name.Parent.Parent:Destroy() end
@@ -435,16 +447,16 @@ Tabs.ESP:AddToggle("ESPOnlyEnemies", {
 })
 
 -- ==================== ABA MISC ====================
-Tabs.Misc:AddSection("Interface")
+MiscTab:AddSection("Interface")
 
-Tabs.Misc:AddButton({
+MiscTab:AddButton({
     Title = "Alternar tema (Dark/Light)",
     Callback = function()
         if Fluent.Theme == "Dark" then Fluent:SetTheme("Light") else Fluent:SetTheme("Dark") end
     end
 })
 
-Tabs.Misc:AddSlider({
+MiscTab:AddSlider({
     Title = "Transparência da janela",
     Default = 1, Min = 0.5, Max = 1, Rounding = 2,
     Callback = function(v)
@@ -453,38 +465,38 @@ Tabs.Misc:AddSlider({
     end
 })
 
-Tabs.Misc:AddSection("Configurações do Script")
+MiscTab:AddSection("Configurações do Script")
 
-Tabs.Misc:AddButton({
+MiscTab:AddButton({
     Title = "Salvar configuração",
     Callback = function()
-        SaveManager:Save()
+        pcall(function() if SaveManager then SaveManager:Save() end end)
         Fluent:Notify({ Title = "Sucesso", Content = "Configurações salvas!", Duration = 2 })
     end
 })
 
-Tabs.Misc:AddButton({
+MiscTab:AddButton({
     Title = "Carregar configuração",
     Callback = function()
-        SaveManager:Load()
+        pcall(function() if SaveManager then SaveManager:Load() end end)
         Fluent:Notify({ Title = "Sucesso", Content = "Configurações carregadas!", Duration = 2 })
     end
 })
 
-Tabs.Misc:AddButton({
+MiscTab:AddButton({
     Title = "Resetar configurações",
     Callback = function()
-        SaveManager:Reset()
+        pcall(function() if SaveManager then SaveManager:Reset() end end)
         Fluent:Notify({ Title = "Aviso", Content = "Configurações resetadas!", Duration = 2 })
     end
 })
 
-Tabs.Misc:AddButton({
+MiscTab:AddButton({
     Title = "Fechar UI",
     Callback = function() Window:Destroy() end
 })
 
-Tabs.Misc:AddParagraph({
+MiscTab:AddParagraph({
     Title = "Informações",
     Content = "Universal Tool v3.0\nDesenvolvido com Fluent UI\nESP simplificado"
 })
@@ -498,5 +510,5 @@ Fluent:Notify({
 })
 
 -- Carregar configurações salvas
-SaveManager:LoadAutoloadConfig()
+pcall(function() if SaveManager then SaveManager:LoadAutoloadConfig() end end)
 Window:SelectTab(1)
