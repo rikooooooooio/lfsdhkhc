@@ -1,33 +1,33 @@
 --[[
-    Universal Tool – WindUI (Totalmente Corrigido)
-    Aimbot Configurável | ESP (Box + Nome)
+    Universal Tool – WindUI (Sintaxe Corrigida)
+    Aimbot configurável | ESP (Box + Nome)
 ]]
 
--- CARREGAR WINDUI
+-- ==================== CARREGAR WINDUI ====================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 if not WindUI then
     game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Erro", Text = "Falha ao carregar WindUI", Duration = 5})
     return
 end
 
--- SERVIÇOS
+-- ==================== SERVIÇOS ====================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- CONFIGURAÇÕES
+-- ==================== CONFIGURAÇÕES ====================
 local settings = {
     aimbot = {enabled = false, smoothness = 10, fov = 200, targetPart = "Head", keybind = nil},
     esp = {showBox = true, showName = true, teamColor = true, onlyEnemies = false}
 }
 
--- VARIÁVEIS
+-- ==================== VARIÁVEIS ====================
 local espHighlights = {}
 local espNameLabels = {}
 
--- FUNÇÕES AUXILIARES
+-- ==================== FUNÇÕES AUXILIARES ====================
 local function isEnemy(p)
     if p == LocalPlayer then return false end
     if settings.esp.onlyEnemies then return LocalPlayer.Team ~= p.Team end
@@ -35,13 +35,12 @@ local function isEnemy(p)
 end
 
 local function getTargetPart(char)
-    local part = char:FindFirstChild(settings.aimbot.targetPart) or
-                 char:FindFirstChild("UpperTorso") or
-                 char:FindFirstChild("HumanoidRootPart")
-    return part
+    return char:FindFirstChild(settings.aimbot.targetPart) or
+           char:FindFirstChild("UpperTorso") or
+           char:FindFirstChild("HumanoidRootPart")
 end
 
--- AIMBOT
+-- ==================== AIMBOT ====================
 local function getClosestPlayerToCrosshair()
     local closestDist = settings.aimbot.fov
     local closest = nil
@@ -71,7 +70,7 @@ local function smoothCameraLookAt(pos, smooth)
     Camera.CFrame = current:Lerp(target, 1/s)
 end
 
--- ESP (Box + Nome)
+-- ==================== ESP ====================
 local function setupESP(player)
     if espHighlights[player] then return end
     local char = player.Character
@@ -137,7 +136,7 @@ local function updateESP()
     end
 end
 
--- INICIAR ESP
+-- Inicializar ESP
 for _, plr in ipairs(Players:GetPlayers()) do
     if plr ~= LocalPlayer then
         plr.CharacterAdded:Connect(function() task.wait(0.5); if isEnemy(plr) then setupESP(plr) end end)
@@ -150,7 +149,7 @@ Players.PlayerAdded:Connect(function(plr)
     if plr.Character and isEnemy(plr) then setupESP(plr) end
 end)
 
--- LOOP PRINCIPAL
+-- ==================== LOOP PRINCIPAL ====================
 RunService.RenderStepped:Connect(function()
     updateESP()
     if settings.aimbot.enabled then
@@ -165,7 +164,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==================== INTERFACE WINDUI ====================
+-- ==================== INTERFACE WINDUI (Sintaxe 100% compatível) ====================
 local Window = WindUI:CreateWindow({
     Title = "Universal Tool",
     Author = "System",
@@ -175,7 +174,7 @@ local Window = WindUI:CreateWindow({
     Size = UDim2.fromOffset(420, 380),
     Resizable = true,
     ToggleKey = Enum.KeyCode.RightControl,
-    SideBarWidth = 150,
+    SideBarWidth = 150
 })
 
 if not Window then
@@ -183,34 +182,107 @@ if not Window then
     return
 end
 
--- Abas (usando tabela com Title e Icon)
-local AimbotTab = Window:Tab({Title = "Aimbot", Icon = "crosshair"})
-local ESPTab = Window:Tab({Title = "ESP", Icon = "eye"})
+-- Criar abas (usando string para título e ícone)
+local AimbotTab = Window:Tab("Aimbot", "crosshair")
+local ESPTab = Window:Tab("ESP", "eye")
 
 -- ==================== ABA AIMBOT ====================
 AimbotTab:Section({Title = "Configurações do Aimbot"})
-AimbotTab:Toggle({Title = "Ativar Aimbot", Icon = "target", Value = false, Callback = function(v) settings.aimbot.enabled = v end})
-AimbotTab:Slider({Title = "Suavidade", Icon = "gauge", Min = 1, Max = 50, Step = 1, Value = 10, Callback = function(v) settings.aimbot.smoothness = v end})
-AimbotTab:Slider({Title = "Campo de visão (FOV)", Icon = "radius", Min = 50, Max = 400, Step = 10, Value = 200, Callback = function(v) settings.aimbot.fov = v end})
-AimbotTab:Dropdown({Title = "Parte do corpo", Icon = "person-standing", Values = {"Head", "UpperTorso", "HumanoidRootPart"}, Value = "Head", Callback = function(v) settings.aimbot.targetPart = v end})
-AimbotTab:Keybind({Title = "Tecla de ativação (opcional)", Icon = "key", Value = "None", Callback = function(key) settings.aimbot.keybind = (key == "None" and nil or key) end})
+
+AimbotTab:Toggle({
+    Title = "Ativar Aimbot",
+    Icon = "target",
+    Value = false,
+    Callback = function(v) settings.aimbot.enabled = v end
+})
+
+AimbotTab:Slider({
+    Title = "Suavidade",
+    Icon = "gauge",
+    Min = 1,
+    Max = 50,
+    Step = 1,
+    Value = 10,
+    Callback = function(v) settings.aimbot.smoothness = v end
+})
+
+AimbotTab:Slider({
+    Title = "Campo de visão (FOV)",
+    Icon = "radius",
+    Min = 50,
+    Max = 400,
+    Step = 10,
+    Value = 200,
+    Callback = function(v) settings.aimbot.fov = v end
+})
+
+AimbotTab:Dropdown({
+    Title = "Parte do corpo",
+    Icon = "person-standing",
+    Values = {"Head", "UpperTorso", "HumanoidRootPart"},
+    Value = "Head",
+    Callback = function(v) settings.aimbot.targetPart = v end
+})
+
+AimbotTab:Keybind({
+    Title = "Tecla de ativação",
+    Icon = "key",
+    Value = "None",
+    Callback = function(key)
+        settings.aimbot.keybind = (key == "None" and nil or key)
+    end
+})
 
 -- ==================== ABA ESP ====================
 ESPTab:Section({Title = "Elementos do ESP"})
-ESPTab:Toggle({Title = "Caixa (Box)", Icon = "bounding-box", Value = true, Callback = function(v) settings.esp.showBox = v end})
-ESPTab:Toggle({Title = "Nome", Icon = "text", Value = true, Callback = function(v) settings.esp.showName = v end})
-ESPTab:Toggle({Title = "Cor por time", Icon = "palette", Value = true, Callback = function(v) settings.esp.teamColor = v end})
-ESPTab:Toggle({Title = "Apenas inimigos", Icon = "swords", Value = false, Callback = function(v)
-    settings.esp.onlyEnemies = v
-    -- Recriar ESP
-    for _, h in pairs(espHighlights) do if h then h:Destroy() end end
-    for _, n in pairs(espNameLabels) do if n and n.Parent then n.Parent:Destroy() end end
-    espHighlights = {}; espNameLabels = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and isEnemy(p) then setupESP(p) end
-    end
-end})
-ESPTab:Button({Title = "Fechar UI", Icon = "door-closed", Callback = function() Window:Destroy() end})
 
--- NOTIFICAÇÃO
-WindUI:Notify({Title = "Universal Tool", Icon = "rocket", Content = "Script carregado! Aimbot e ESP prontos.", Duration = 4})
+ESPTab:Toggle({
+    Title = "Caixa (Box)",
+    Icon = "bounding-box",
+    Value = true,
+    Callback = function(v) settings.esp.showBox = v end
+})
+
+ESPTab:Toggle({
+    Title = "Nome",
+    Icon = "text",
+    Value = true,
+    Callback = function(v) settings.esp.showName = v end
+})
+
+ESPTab:Toggle({
+    Title = "Cor por time",
+    Icon = "palette",
+    Value = true,
+    Callback = function(v) settings.esp.teamColor = v end
+})
+
+ESPTab:Toggle({
+    Title = "Apenas inimigos",
+    Icon = "swords",
+    Value = false,
+    Callback = function(v)
+        settings.esp.onlyEnemies = v
+        -- Recriar ESP
+        for _, h in pairs(espHighlights) do if h then h:Destroy() end end
+        for _, n in pairs(espNameLabels) do if n and n.Parent then n.Parent:Destroy() end end
+        espHighlights = {}; espNameLabels = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and isEnemy(p) then setupESP(p) end
+        end
+    end
+})
+
+ESPTab:Button({
+    Title = "Fechar UI",
+    Icon = "door-closed",
+    Callback = function() Window:Destroy() end
+})
+
+-- Notificação
+WindUI:Notify({
+    Title = "Universal Tool",
+    Icon = "rocket",
+    Content = "Script carregado! Aimbot e ESP prontos.",
+    Duration = 4
+})
